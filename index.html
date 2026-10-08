@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storedetailing — Phim bảo vệ sơn PPF</title>
+  <meta name="description" content="Storedetailing thi công phim bảo vệ sơn PPF cao cấp: tự phục hồi vết xước nhỏ, giữ độ bóng sâu, chống đá văng và ố vàng." />
+  <meta name="theme-color" content="#060708" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Loader -->
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__brand">STORE<span>DETAILING</span></div>
+    <div class="loader__bar"><i id="loaderBar"></i></div>
+    <div class="loader__pct mono"><span id="loaderPct">0</span>%</div>
+  </div>
+
+  <!-- Cursor -->
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__ring"><span class="cursor__label"></span></div>
+    <div class="cursor__dot"></div>
+  </div>
+
+  <div class="scroll-progress" aria-hidden="true"><i></i></div>
+
+  <header class="nav" id="nav">
+    <a href="#top" class="nav__brand" aria-label="Storedetailing — về đầu trang">STORE<span>DETAILING</span></a>
+    <nav class="nav__links" aria-label="Điều hướng chính">
+      <a href="#top" data-chapter="layers">Cấu tạo</a>
+      <a href="#top" data-chapter="heal">Tự phục hồi</a>
+      <a href="#goi">Gói dịch vụ</a>
+      <a href="#quy-trinh">Quy trình</a>
+    </nav>
+    <a href="#lien-he" class="btn btn--accent btn--sm" data-magnetic>Đặt lịch</a>
+  </header>
+
+  <main>
+    <!-- ============ STORY: one car on the road, copy on both sides ============ -->
+    <section class="story" id="top">
+      <div class="story__sticky">
+        <canvas class="story__canvas" id="storyCanvas" aria-label="Xe 3D trong studio: phủ phim PPF, thử nghiệm đá văng, tự phục hồi, cấu tạo 5 lớp và so sánh hiệu quả"></canvas>
+        <div class="story__vignette" aria-hidden="true"></div>
+
+        <!-- 01 · Hero -->
+        <div class="ch ch--hero" data-ch="hero">
+          <div class="ch__l">
+            <p class="eyebrow"><span class="eyebrow__n">01</span>Phim bảo vệ sơn PPF</p>
+            <h1 class="hero__title">
+              <span class="line"><span>Lớp giáp</span></span>
+              <span class="line"><span><em>vô hình</em></span></span>
+              <span class="line"><span>cho lớp sơn</span></span>
+              <span class="line"><span>nguyên bản.</span></span>
+            </h1>
+          </div>
+          <div class="ch__r">
+            <p class="hero__sub">Phim PPF cao cấp, thi công chuẩn xưởng. Tự phục hồi vết xước nhỏ, giữ độ bóng sâu và chống ố vàng theo thời gian.</p>
+            <div class="hero__cta">
+              <a href="#lien-he" class="btn btn--accent" data-magnetic>Đặt lịch tư vấn</a>
+              <a href="#top" class="btn btn--ghost" data-magnetic data-chapter="layers">Khám phá cấu tạo</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- 02 · Wrap -->
+        <div class="ch ch--wrap" data-ch="wrap">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">02</span>Thi công</p>
+            <h2 class="ch__title"><span class="ln"><span>Phủ kín</span></span><span class="ln"><span>từng chi tiết.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Phim được cắt theo khuôn riêng của từng dòng xe, thi công từng mảng và gói mép kín, gần như không thể nhận ra bằng mắt thường.</p>
+            <dl class="specs rv">
+              <div><dt>Độ phủ</dt><dd><b data-wrap-pct>0</b><small>%</small></dd></div>
+              <div><dt>Độ dày phim</dt><dd><b>~0,2</b><small>mm</small></dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <!-- 03 · Stone impact -->
+        <div class="ch ch--impact" data-ch="impact">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">03</span>Va đập</p>
+            <h2 class="ch__title"><span class="ln"><span>Thử nghiệm</span></span><span class="ln"><span>đá văng.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Mô phỏng bài thử va đập đá dăm: đá nhỏ bắn vào đầu xe ở tốc độ cao. Màng nền TPU dẻo dai hấp thụ và phân tán lực va đập, giữ lớp sơn bên dưới nguyên vẹn.</p>
+            <dl class="specs specs--text rv">
+              <div><dt>Lớp chịu lực</dt><dd><b>Màng TPU</b></dd></div>
+              <div><dt>Sơn zin</dt><dd><b>Nguyên vẹn</b></dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <!-- 04 · Close-up self-heal -->
+        <div class="ch ch--heal" data-ch="heal">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">04</span>Tự phục hồi</p>
+            <h2 class="ch__title"><span class="ln"><span>Vết hằn mờ dần,</span></span><span class="ln"><span>bề mặt liền lại.</span></span></h2>
+            <p class="ch__body rv">Dưới tác động của nhiệt từ nắng hoặc nước ấm, lớp phủ trên cùng tự phục hồi các vết hằn và vết xước nhỏ, không cần đánh bóng.</p>
+          </div>
+          <div class="ch__r">
+            <div class="heal__panel rv">
+              <p class="heal__label">Trải nghiệm trực tiếp</p>
+              <div class="heal__status" id="healStatus"><i></i><span></span></div>
+              <div class="heal__meter">
+                <span>Nhiệt độ bề mặt</span>
+                <b class="mono" id="healTemp">28°C</b>
+              </div>
+            </div>
+            <p class="story__note rv">Áp dụng cho vết hằn và vết xước nhỏ trên lớp phủ, không áp dụng cho vết rách sâu.</p>
+          </div>
+        </div>
+
+        <!-- 05 · Anatomy rising out of the bonnet -->
+        <div class="ch ch--layers" data-ch="layers">
+          <svg class="layers__lines" id="layersLines" aria-hidden="true"></svg>
+          <div class="layers__labels" id="layersLabels"></div>
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">05</span>Cấu tạo</p>
+            <h2 class="ch__title"><span class="ln"><span>5 lớp vật liệu.</span></span><span class="ln"><span>Một lá chắn.</span></span></h2>
+            <article class="layers__detail rv" id="layersDetail" aria-live="polite">
+              <div class="layers__head">
+                <span class="layers__num mono" data-f="num">01</span>
+                <span class="layers__of mono">/ 05</span>
+              </div>
+              <h3 data-f="name">Lớp phủ tự phục hồi</h3>
+              <p class="layers__en mono" data-f="en">Self-healing top coat</p>
+              <p class="layers__desc" data-f="desc"></p>
+              <ul class="layers__props" data-f="props"></ul>
+            </article>
+          </div>
+          <div class="ch__r" aria-hidden="true"></div>
+          <ol class="layers__list" id="layersList" aria-label="Chọn lớp phim"></ol>
+        </div>
+
+        <!-- 06 · Before / after on the car -->
+        <div class="ch ch--compare" data-ch="compare">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">06</span>Hiệu quả</p>
+            <h2 class="ch__title"><span class="ln"><span>Khác biệt</span></span><span class="ln"><span>theo năm tháng.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Mô phỏng bề mặt sơn sau nhiều năm sử dụng trong điều kiện đô thị. Kéo ngang trên thân xe để so sánh.</p>
+            <p class="story__note rv">Hình ảnh mô phỏng mang tính minh hoạ.</p>
+          </div>
+          <div class="compare__knob" id="compareKnob" aria-hidden="true">
+            <span class="compare__tag compare__tag--l">Không phủ phim</span>
+            <i></i>
+            <span class="compare__tag compare__tag--r">Có phim PPF</span>
+          </div>
+        </div>
+
+        <!-- 07 · Outro -->
+        <div class="ch ch--outro" data-ch="outro">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">07</span>Storedetailing</p>
+            <h2 class="ch__title ch__title--xl"><span class="ln"><span>Một lớp phim.</span></span><span class="ln"><span>Mọi hành trình.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Tư vấn trực tiếp, kiểm tra bề mặt sơn và báo giá theo dòng xe.</p>
+            <div class="hero__cta is-on rv">
+              <a href="#lien-he" class="btn btn--accent" data-magnetic>Đặt lịch tư vấn</a>
+              <a href="#goi" class="btn btn--ghost" data-magnetic>Xem các gói</a>
+            </div>
+          </div>
+        </div>
+
+        <nav class="rail" aria-label="Các chương">
+          <button type="button" data-go="hero" class="is-active"><span>Mở đầu</span></button>
+          <button type="button" data-go="wrap"><span>Thi công</span></button>
+          <button type="button" data-go="impact"><span>Va đập</span></button>
+          <button type="button" data-go="heal"><span>Tự phục hồi</span></button>
+          <button type="button" data-go="layers"><span>Cấu tạo</span></button>
+          <button type="button" data-go="compare"><span>Hiệu quả</span></button>
+          <button type="button" data-go="outro"><span>Đặt lịch</span></button>
+        </nav>
+
+        <p class="story__hint" aria-hidden="true"><span class="hint-dot"></span><span>Di chuột lên thân xe để xem lớp phim</span></p>
+        <div class="story__scroll" aria-hidden="true">Cuộn để khám phá<i></i></div>
+      </div>
+    </section>
+
+    <!-- ============ MARQUEE ============ -->
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee__track">
+        <span>Tự phục hồi</span><span>✦</span><span>Kỵ nước</span><span>✦</span><span>Chống ố vàng</span><span>✦</span><span>Tăng độ bóng</span><span>✦</span><span>Chống đá văng</span><span>✦</span><span>Màng TPU</span><span>✦</span>
+        <span>Tự phục hồi</span><span>✦</span><span>Kỵ nước</span><span>✦</span><span>Chống ố vàng</span><span>✦</span><span>Tăng độ bóng</span><span>✦</span><span>Chống đá văng</span><span>✦</span><span>Màng TPU</span><span>✦</span>
+      </div>
+    </div>
+
+    <!-- ============ STATS ============ -->
+    <section class="stats">
+      <div class="container">
+        <p class="eyebrow" data-reveal>Thông số tiêu biểu</p>
+        <div class="stats__grid">
+          <div class="stat" data-reveal><span class="stat__label">Độ dày phim</span><b><span class="stat__pre">~</span><span data-count="200">0</span><small>µm</small></b><span class="stat__desc">Khoảng 0,2 mm, gần như không làm thay đổi đường nét thân xe.</span></div>
+          <div class="stat" data-reveal><span class="stat__label">Cấu trúc</span><b><span data-count="5">0</span><small>lớp</small></b><span class="stat__desc">Từ lớp phủ tự phục hồi đến màng nền TPU chịu lực.</span></div>
+          <div class="stat" data-reveal><span class="stat__label">Tuổi thọ</span><b><span class="stat__pre">đến</span><span data-count="10">0</span><small>năm*</small></b><span class="stat__desc">Tuỳ dòng phim và điều kiện sử dụng.</span></div>
+        </div>
+        <p class="stats__foot">* Thông số chi tiết theo công bố của nhà sản xuất cho từng dòng phim.</p>
+      </div>
+    </section>
+
+    <!-- ============ PACKAGES ============ -->
+    <section class="packages" id="goi">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow" data-reveal>Gói dịch vụ</p>
+          <h2 class="section-title" data-split>Lựa chọn mức bảo vệ.</h2>
+          <p class="lead" data-reveal>Mỗi gói được tư vấn theo dòng xe và thói quen sử dụng. Báo giá chi tiết sau khi kiểm tra tình trạng xe.</p>
+        </div>
+        <div class="packages__grid">
+          <article class="pkg" data-tilt>
+            <div class="pkg__glare"></div>
+            <p class="pkg__tier">Front Kit</p>
+            <h3>Bảo vệ vùng va chạm</h3>
+            <p class="pkg__desc">Bảo vệ các khu vực chịu va đập và trầy xước nhiều nhất khi vận hành.</p>
+            <ul>
+              <li>Cản trước, nắp capo, tai xe</li>
+              <li>Gương chiếu hậu</li>
+              <li>Hõm tay nắm cửa</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--ghost btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+          <article class="pkg pkg--featured" data-tilt>
+            <div class="pkg__glare"></div>
+            <span class="pkg__badge">Đề xuất</span>
+            <p class="pkg__tier">Full Body · Gloss</p>
+            <h3>Toàn thân, bề mặt bóng</h3>
+            <p class="pkg__desc">Phủ toàn bộ bề mặt sơn, giữ nguyên màu sơn zin với độ bóng sâu.</p>
+            <ul>
+              <li>Toàn bộ các mảng thân xe</li>
+              <li>Cắt phim theo khuôn từng dòng xe</li>
+              <li>Gói mép kín các cạnh</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--accent btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+          <article class="pkg" data-tilt>
+            <div class="pkg__glare"></div>
+            <p class="pkg__tier">Full Body · Satin</p>
+            <h3>Toàn thân, bề mặt nhám</h3>
+            <p class="pkg__desc">Chuyển bề mặt bóng sang hiệu ứng satin sang trọng, vẫn bảo vệ toàn diện.</p>
+            <ul>
+              <li>Hiệu ứng satin đồng đều</li>
+              <li>Tháo gỡ được, trả lại sơn bóng zin</li>
+              <li>Hạn chế lộ vết xoáy</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--ghost btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROCESS ============ -->
+    <section class="process" id="quy-trinh">
+      <div class="process__sticky">
+        <div class="process__head container">
+          <p class="eyebrow">Quy trình</p>
+          <h2 class="section-title">Quy trình thi công 5 bước.</h2>
+        </div>
+        <div class="process__track" id="processTrack">
+          <article class="step"><span class="step__n mono">01</span><h3>Kiểm tra &amp; tư vấn</h3><p>Đo độ dày sơn, đánh giá tình trạng bề mặt và tư vấn dòng phim, phạm vi phủ phù hợp.</p></article>
+          <article class="step"><span class="step__n mono">02</span><h3>Làm sạch chuyên sâu</h3><p>Rửa nhiều bước, tẩy bụi sắt, nhựa đường và tạp chất bám trên bề mặt sơn.</p></article>
+          <article class="step"><span class="step__n mono">03</span><h3>Hiệu chỉnh bề mặt sơn</h3><p>Đánh bóng xử lý vết xoáy, xước nhẹ để bề mặt đạt trạng thái tốt nhất trước khi phủ phim.</p></article>
+          <article class="step"><span class="step__n mono">04</span><h3>Cắt phim &amp; thi công</h3><p>Cắt phim theo khuôn từng dòng xe, thi công từng mảng và gói mép trong khu vực sạch.</p></article>
+          <article class="step"><span class="step__n mono">05</span><h3>Hoàn thiện &amp; bàn giao</h3><p>Sấy định hình, kiểm tra dưới đèn chuyên dụng và hướng dẫn chăm sóc sau thi công.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="lien-he">
+      <div class="container">
+        <p class="eyebrow" data-reveal>Liên hệ</p>
+        <h2 class="contact__title" data-split>Giữ xe như<br/>ngày đầu nhận.</h2>
+        <p class="lead contact__lead" data-reveal>Mang xe đến để được kiểm tra bề mặt sơn và tư vấn phương án bảo vệ phù hợp.</p>
+        <div class="contact__actions" data-reveal>
+          <a href="#lien-he" class="btn btn--accent btn--lg" data-magnetic data-todo="zalo">Nhắn Zalo</a>
+          <a href="#lien-he" class="btn btn--ghost btn--lg" data-magnetic data-todo="tel">Gọi hotline</a>
+          <a href="#lien-he" class="btn btn--ghost btn--lg" data-magnetic data-todo="map">Chỉ đường</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__row">
+      <span class="nav__brand">STORE<span>DETAILING</span></span>
+      <span class="footer__credit">Mô hình xe 3D: <a href="https://sketchfab.com/3d-models/0a20e49ad5774d778567cb5c3f345786" target="_blank" rel="noopener">“Fictional supercar – V12 Goblin”</a> của ollitei, giấy phép <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</span>
+      <span>© 2026 Storedetailing</span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+
+# local tooling (machine-specific paths)
+.claude/
+.mcp.json
+
+# Blender: autosave backups and the abandoned 95 MB film scene
+*.blend1
+blender/cinematic.blend

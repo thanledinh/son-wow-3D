@@ -1,0 +1,9 @@
+node_modules
+dist
+blender
+.git
+.claude
+.mcp.json
+*.log
+Dockerfile
+.dockerignore
