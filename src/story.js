@@ -87,7 +87,9 @@ export function initStory({ section, sticky, canvas, cursor }) {
   const stones = createStones({ uniforms });
 
   // ---- story state (intro + scroll timeline write here)
-  const state = { az: 0.62, el: 0.08, dist: 8.6, tx: 0, ty: 0.55, tz: 0.2, shiftY: 0.02, pfit: 1, pY: 0.02, wrap: 0, impact: 0 };
+  // pfit / pY / pEl only apply on portrait screens: pull back so the whole car fits the narrow width,
+  // and look down a little more so a low 3/4 view doesn't read as a flat strip on a phone.
+  const state = { az: 0.62, el: 0.08, dist: 8.6, tx: 0, ty: 0.55, tz: 0.2, shiftY: 0.02, pfit: 2, pY: 0.02, pEl: 0.07, wrap: 0, impact: 0 };
   const introOff = { az: -0.5, el: 0.06, dist: 6 }; // decays to zero so it never fights the scroll timeline
   const heat = { t: 28 };
   const cmp = { compare: 0, split: 0 };
@@ -227,11 +229,14 @@ export function initStory({ section, sticky, canvas, cursor }) {
   window.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
 
-  // ---- sizing
+  // ---- sizing: follow the canvas's own box. iOS Safari (toolbar, in-app browsers) can change it
+  // without a window 'resize', and a buffer with a stale aspect gets stretched flat on screen.
   let W = 1, H = 1;
   const resize = () => {
-    W = sticky.clientWidth;
-    H = sticky.clientHeight;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h || (w === W && h === H)) return;
+    W = w;
+    H = h;
     renderer.setSize(W, H, false);
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
@@ -239,7 +244,28 @@ export function initStory({ section, sticky, canvas, cursor }) {
     mirror.getRenderTarget().setSize(Math.round(W * dpr * 0.6), Math.round(H * dpr * 0.6));
   };
   resize();
+  new ResizeObserver(resize).observe(canvas);
   window.addEventListener('resize', resize);
+  window.visualViewport?.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 300));
+
+  // ?debug → live size readout, for checking on a real phone
+  if (new URLSearchParams(location.search).has('debug')) {
+    const box = document.createElement('pre');
+    box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;margin:0;padding:8px 10px;font:11px/1.4 monospace;color:#9f9;background:rgba(0,0,0,.8);border-radius:6px;pointer-events:none';
+    document.body.appendChild(box);
+    const gl = renderer.getContext();
+    setInterval(() => {
+      const vv = window.visualViewport;
+      box.textContent = [
+        `css    ${canvas.clientWidth}×${canvas.clientHeight}  (${(canvas.clientWidth / canvas.clientHeight).toFixed(3)})`,
+        `buffer ${canvas.width}×${canvas.height}  (${(canvas.width / canvas.height).toFixed(3)})`,
+        `gl     ${gl.drawingBufferWidth}×${gl.drawingBufferHeight}`,
+        `camera ${camera.aspect.toFixed(3)}  dpr ${devicePixelRatio}→${dpr}`,
+        `window ${innerWidth}×${innerHeight}  vv ${vv ? `${Math.round(vv.width)}×${Math.round(vv.height)}` : '-'}`,
+      ].join('\n');
+    }, 500);
+  }
 
   // ---- per frame
   let frame = 0;
@@ -263,6 +289,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
 
   const render = (time) => {
     frame++;
+    if (frame % 30 === 0) resize(); // safety net in case a size change slipped past the observers
     uniforms.uTime.value = time;
 
     if (tl) {
@@ -290,7 +317,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
       : camera.aspect < 1.5 ? 1 + (1.5 - camera.aspect) * 0.6 : 1;
     const close = state.dist < 2 ? 0.25 : 1; // calmer parallax in macro shots
     const camDist = (state.dist + introOff.dist) * fit;
-    const el = state.el + introOff.el + my * 0.04 * close;
+    const el = state.el + (portrait ? state.pEl : 0) + introOff.el + my * 0.04 * close;
     const az = state.az + introOff.az + mx * 0.12 * close;
     target.set(state.tx, state.ty, state.tz);
     camera.position.set(
@@ -377,7 +404,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
       // 01 → 02: hero to side profile while the film laminates front → rear
       .to(ch.hero, { autoAlpha: 0, y: -40, duration: 0.3, ease: 'power2.in' }, 0)
       .to([hint, sticky.querySelector('.story__scroll')], { autoAlpha: 0, duration: 0.2 }, 0)
-      .to(state, { az: PI / 2, el: 0.06, dist: 9.2, tx: 0, ty: 0.5, tz: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, duration: 1 }, 0)
+      .to(state, { az: PI / 2, el: 0.06, dist: 9.2, tx: 0, ty: 0.5, tz: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, pEl: 0, duration: 1 }, 0)
       .to(state, { wrap: 1, duration: 1.1, ease: 'none' }, 0.3)
       .fromTo(ch.wrap, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 0.45)
       .to(ch.wrap, { autoAlpha: 0, duration: 0.25 }, 1.65)
@@ -413,7 +440,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
       .to(ch.compare, { autoAlpha: 0, duration: 0.2 }, 12.55)
       .to(cmp, { compare: 0, duration: 0.3 }, 12.55)
       // 07: call to action
-      .to(state, { az: 0.42, el: 0.1, dist: 10.4, tx: 0, ty: 0.55, tz: 0.3, shiftY: 0.02, pfit: 1, pY: 0.02, duration: 0.9 }, 12.7)
+      .to(state, { az: 0.42, el: 0.1, dist: 10.4, tx: 0, ty: 0.55, tz: 0.3, shiftY: 0.02, pfit: 1.15, pY: 0.02, pEl: 0.06, duration: 0.9 }, 12.7)
       .fromTo(ch.outro, { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 13.25)
       .to({}, { duration: 0.6 }, 13.6);
     if (import.meta.env.DEV) window.__story = { tl, state, stones, camera, car, scene, renderer, mirror };
@@ -439,6 +466,68 @@ export function initStory({ section, sticky, canvas, cursor }) {
       .to('.hero__cta', { opacity: 1, duration: 1 }, 1.05)
       .to(['.story__hint', '.story__scroll', '.rail'], { opacity: 1, duration: 1 }, 1.4);
 
-  const story = { ready, intro, scrollToChapter, lenis: null };
+  // ---- demo mode (?demo): a hands-free run through the story for screen recordings
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const yAt = (t) => {
+    const st = tl.scrollTrigger;
+    return st.start + ((st.end - st.start) * t) / tl.duration();
+  };
+  const glide = (lenis, y, duration) => new Promise((resolve) => {
+    lenis.scrollTo(y, { duration, easing: (x) => (x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2), onComplete: resolve });
+  });
+  const point = (type, nx, ny, target = sticky) => {
+    const r = canvas.getBoundingClientRect();
+    target.dispatchEvent(new PointerEvent(type, {
+      clientX: r.left + nx * r.width, clientY: r.top + ny * r.height,
+      bubbles: true, pointerType: 'mouse', pointerId: 1, isPrimary: true,
+    }));
+  };
+  const sweep = async (path, ms, type = 'pointermove') => {
+    const steps = Math.round(ms / 16);
+    for (let i = 0; i <= steps; i++) {
+      const k = i / steps;
+      const seg = Math.min(path.length - 2, Math.floor(k * (path.length - 1)));
+      const f = k * (path.length - 1) - seg;
+      const [x0, y0] = path[seg], [x1, y1] = path[seg + 1];
+      point(type, x0 + (x1 - x0) * f, y0 + (y1 - y0) * f);
+      await wait(16);
+    }
+  };
+  const demo = async (lenis) => {
+    await wait(900);
+    // 01 the film torch glides over the car
+    await sweep([[0.36, 0.55], [0.45, 0.45], [0.55, 0.5], [0.62, 0.42], [0.5, 0.52]], 4200);
+    point('pointerleave', 0.5, 0.5);
+    // 02 wrap
+    await glide(lenis, yAt(1.15), 4.5);
+    await wait(1600);
+    // 03 stone test, slowly so every hit reads
+    await glide(lenis, yAt(2.3), 2.2);
+    await glide(lenis, yAt(3.55), 6.5);
+    await wait(600);
+    // 04 macro self-heal, then the visitor fires one more stone
+    await glide(lenis, yAt(5.3), 5.5);
+    await wait(1200);
+    point('pointermove', 0.47, 0.46);
+    point('pointerdown', 0.47, 0.46, canvas);
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    await wait(4600);
+    // 05 the five layers rise out of the bonnet, one by one
+    await glide(lenis, yAt(7.85), 4);
+    await glide(lenis, yAt(9.95), 9);
+    // 06 before / after: drag the split back and forth
+    await glide(lenis, yAt(11.9), 4.5);
+    await wait(900);
+    point('pointerdown', 0.5, 0.5, canvas);
+    await sweep([[0.5, 0.5], [0.34, 0.5], [0.66, 0.5], [0.5, 0.5]], 4200);
+    window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+    point('pointerleave', 0.5, 0.5);
+    // 07 booking, then the rest of the page
+    await glide(lenis, yAt(13.6), 3.5);
+    await wait(2000);
+    await glide(lenis, document.documentElement.scrollHeight - window.innerHeight, 14);
+  };
+
+  const story = { ready, intro, scrollToChapter, demo, lenis: null };
   return story;
 }

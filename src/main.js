@@ -200,6 +200,55 @@ const story = initStory({
 story.lenis = lenis;
 if (import.meta.env.DEV) window.__lenis = lenis;
 
+// ---------- self-recording (?rec): capture this tab while the demo plays, then download the video ----------
+function pickRecorderType() {
+  const types = ['video/mp4;codecs=avc1.640028', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  return types.find((t) => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || '';
+}
+
+function offerRecording() {
+  const btn = document.createElement('button');
+  btn.className = 'rec-btn';
+  btn.type = 'button';
+  btn.innerHTML = '<i></i>Bấm để bắt đầu quay video';
+  document.body.appendChild(btn);
+  btn.addEventListener('click', async () => {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 60, cursor: 'never', displaySurface: 'browser' },
+        audio: false,
+        preferCurrentTab: true,
+        selfBrowserSurface: 'include',
+      });
+    } catch {
+      btn.innerHTML = '<i></i>Chưa cấp quyền quay, bấm lại để thử';
+      return;
+    }
+    btn.remove();
+    const type = pickRecorderType();
+    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 14_000_000 });
+    const chunks = [];
+    rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    rec.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(chunks, { type: type || 'video/webm' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `storedetailing-demo.${type.includes('mp4') ? 'mp4' : 'webm'}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    };
+    lenis.scrollTo(0, { immediate: true });
+    await new Promise((r) => setTimeout(r, 600));
+    rec.start(1000);
+    await story.demo(lenis);
+    await new Promise((r) => setTimeout(r, 1200));
+    rec.stop();
+  });
+}
+
 // ---------- loader ----------
 {
   const bar = document.querySelector('#loaderBar');
@@ -228,6 +277,12 @@ if (import.meta.env.DEV) window.__lenis = lenis;
           lenis.start();
           ScrollTrigger.refresh();
         })
-        .add(story.intro(), '-=0.7');
+        .add(story.intro(), '-=0.7')
+        // ?demo → hands-free run through the whole story; ?rec → the page records that run itself
+        .add(() => {
+          const q = new URLSearchParams(location.search);
+          if (q.has('rec')) offerRecording();
+          else if (q.has('demo')) story.demo(lenis);
+        });
     });
 }

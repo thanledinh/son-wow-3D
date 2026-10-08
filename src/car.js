@@ -5,10 +5,11 @@ import { gltfLoader, asset, HEX_GLSL } from './studio.js';
 export const CAR_LEN = { front: -2.4, rear: 2.4 };
 export const CHIP_SLOTS = 4;
 const WHEEL_RADIUS = 0.34;
+const WEAR_TILE = 1.4; // metres of paint per repeat of the wear texture
 
 const HEADER = /* glsl */ `
 uniform vec2 uMouse; uniform float uRadius; uniform float uHover; uniform float uWrap; uniform float uTime; uniform vec2 uRes;
-uniform float uSplit; uniform float uCompare;
+uniform float uSplit; uniform float uCompare; uniform sampler2D uWear;
 uniform vec4 uChips[${CHIP_SLOTS}];     // xyz = impact point (car space), w = how visible the mark is
 uniform float uChipHeat[${CHIP_SLOTS}]; // self-healing glow
 varying vec3 vCarPos; varying vec3 vCarNrm;
@@ -24,16 +25,44 @@ vec2 carPlane() {
 }
 // 1 on the unprotected (front) side of the before/after split
 float wornMask() { return uCompare * (1.0 - smoothstep(uSplit - 0.01, uSplit + 0.01, vCarPos.z)); }
+// Stones hit the nose and the forward-facing panels; the roof and rear barely get any.
+float chipDensity() {
+  float nose = 1.0 - smoothstep(-2.45, -0.9, vCarPos.z);
+  return clamp(nose * (0.35 + 0.65 * clamp(-vCarNrm.z, 0.0, 1.0)) + 0.03, 0.0, 1.0);
+}
+vec3 gWear; float gChip; // set before lighting, reused after it
 `;
 
+// Three years of city driving without film. Sampled before the early-out so mip selection stays smooth.
 const WEAR_LIGHTING = /* glsl */ `
 {
   float wm = wornMask();
-  material.roughness = mix(material.roughness, 0.6, wm);
+  gWear = texture2D(uWear, carPlane() / ${WEAR_TILE.toFixed(2)}).rgb;
+  gChip = smoothstep(1.0 - chipDensity() * 0.9, 1.06 - chipDensity() * 0.9, gWear.g) * wm;
+  if (wm > 0.001) {
+    // car-wash haze lives in the clearcoat; the black base under it stays deep
+    #ifdef USE_CLEARCOAT
+      material.clearcoat = mix(material.clearcoat, 0.85, wm) * (1.0 - gChip);
+      material.clearcoatRoughness = mix(material.clearcoatRoughness, 0.12, wm);
+    #endif
+    // a chip knocks out clearcoat and colour down to the grey primer
+    material.diffuseContribution = mix(material.diffuseContribution, vec3(0.36), gChip);
+    material.specularColorBlended = mix(material.specularColorBlended, vec3(0.04), gChip);
+    material.roughness = mix(material.roughness, 0.85, gChip);
+  }
+}
+`;
+
+// Swirls and water spots only scatter light where a highlight already sits, like on a real car.
+const WEAR_GLINT = /* glsl */ `
+if (wornMask() > 0.001) {
+  vec3 spec = reflectedLight.directSpecular + reflectedLight.indirectSpecular;
   #ifdef USE_CLEARCOAT
-    material.clearcoat = mix(material.clearcoat, 0.12, wm);
-    material.clearcoatRoughness = mix(material.clearcoatRoughness, 0.45, wm);
+    spec += (clearcoatSpecularDirect + clearcoatSpecularIndirect) * material.clearcoat;
   #endif
+  float hl = pow(dot(spec, vec3(0.2126, 0.7152, 0.0722)), 0.85);
+  float marks = gWear.r + gWear.b * 0.7 * clamp(vCarNrm.y, 0.0, 1.0);
+  reflectedLight.directSpecular += vec3(marks * hl * 1.15 * wornMask() * (1.0 - gChip));
 }
 `;
 
@@ -89,20 +118,8 @@ const OVERLAYS = /* glsl */ `
     gl_FragColor.rgb += vec3(1.0, 0.58, 0.16) * heat * warm;
   }
 
-  // --- three years of city driving without film: swirls, stone chips, oxidised haze
-  if (wm > 0.001) {
-    vec2 p = hp;
-    vec2 cell = floor(p * 3.0);
-    vec2 f = fract(p * 3.0) - 0.5 + (vec2(hash12(cell), hash12(cell + 7.1)) - 0.5) * 0.6;
-    float ring = fract(length(f) * 38.0 + hash12(cell + 3.0) * 5.0);
-    float swirl = smoothstep(0.92, 1.0, ring) * step(0.5, hash12(floor(p * 40.0)));
-    vec2 cc = floor(p * 28.0);
-    float frontLow = 1.0 - smoothstep(-1.4, -0.4, vCarPos.z) * 0.85;
-    float chip = step(0.962, hash12(cc)) * frontLow * (1.0 - smoothstep(0.12, 0.2, length(fract(p * 28.0) - 0.5)));
-    gl_FragColor.rgb += vec3(0.55) * swirl * wm * (0.1 + fres * 0.5);
-    gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.55, 0.55, 0.57), chip * wm);
-    gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(1.0, 0.93, 0.82) + 0.025, wm * 0.6);
-  }
+  // --- faded black goes milky grey, not yellow
+  gl_FragColor.rgb += vec3(0.01) * wm * (1.0 - gChip);
   float splitLine = exp(-pow((vCarPos.z - uSplit) * 40.0, 2.0)) * uCompare;
   gl_FragColor.rgb += amber * splitLine * 1.6;
 }
@@ -121,7 +138,119 @@ export function createUniforms() {
     uCompare: { value: 0 },
     uChips: { value: Array.from({ length: CHIP_SLOTS }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uChipHeat: { value: new Array(CHIP_SLOTS).fill(0) },
+    uWear: { value: makeWearTexture() },
   };
+}
+
+function mulberry32(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * Tileable wear maps for the unprotected paint, drawn once (seeded, so every visit looks the same).
+ * R = rotary-buffer swirl arcs, G = stone chips (value is a per-chip id, culled by density in the
+ * shader), B = dried water-spot rings. Mipmapped, so fine marks blur into haze instead of glittering.
+ */
+function makeWearTexture(size = 2048) {
+  const rnd = mulberry32(20261008);
+  const pxPerM = size / WEAR_TILE;
+  const layer = (draw) => {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, size, size);
+    // repeat a mark across the edges it overlaps so the tile has no seams
+    const at = (x, y, r, fn) => {
+      for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) {
+        const px = x + dx, py = y + dy;
+        if (px + r < 0 || px - r > size || py + r < 0 || py - r > size) continue;
+        g.save(); g.translate(px, py); fn(g); g.restore();
+      }
+    };
+    draw(g, at);
+    return g.getImageData(0, 0, size, size).data;
+  };
+
+  const swirls = layer((g, at) => {
+    g.globalCompositeOperation = 'lighter';
+    // each buffer-pad position leaves a cluster of concentric hairline arcs
+    for (let k = 0; k < 110; k++) {
+      const x = rnd() * size, y = rnd() * size;
+      const maxR = (0.06 + rnd() * 0.3) * pxPerM;
+      at(x, y, maxR, (c) => {
+        for (let i = 0; i < 60; i++) {
+          const r = maxR * (0.08 + rnd() * 0.92);
+          const a0 = rnd() * Math.PI * 2;
+          c.strokeStyle = `rgba(255,255,255,${0.08 + rnd() * 0.3})`;
+          c.lineWidth = 0.8 + rnd() * 1.0;
+          c.beginPath(); c.arc(0, 0, r, a0, a0 + 0.25 + rnd() * 1.4); c.stroke();
+        }
+      });
+    }
+    // a few longer wash and wipe scratches
+    for (let i = 0; i < 45; i++) {
+      const len = (0.08 + rnd() * 0.4) * pxPerM, a = rnd() * Math.PI;
+      at(rnd() * size, rnd() * size, len, (c) => {
+        c.rotate(a);
+        c.strokeStyle = `rgba(255,255,255,${0.12 + rnd() * 0.3})`;
+        c.lineWidth = 0.7 + rnd() * 0.6;
+        c.beginPath(); c.moveTo(-len / 2, 0); c.quadraticCurveTo(0, (rnd() - 0.5) * len * 0.15, len / 2, 0); c.stroke();
+      });
+    }
+  });
+
+  const chips = layer((g, at) => {
+    for (let i = 0; i < 2200; i++) {
+      // mostly 2–4 mm, the odd 1 cm hit
+      const r = (0.0015 + Math.pow(rnd(), 3) * 0.0045) * pxPerM;
+      const id = Math.round((0.15 + rnd() * 0.85) * 255);
+      const n = 7 + Math.floor(rnd() * 5);
+      const pts = Array.from({ length: n }, (_, j) => {
+        const a = (j / n) * Math.PI * 2 + rnd() * 0.5, rr = r * (0.55 + rnd() * 0.45);
+        return [Math.cos(a) * rr, Math.sin(a) * rr];
+      });
+      at(rnd() * size, rnd() * size, r, (c) => {
+        c.fillStyle = `rgb(${id},${id},${id})`;
+        c.beginPath(); pts.forEach(([px, py], j) => (j ? c.lineTo(px, py) : c.moveTo(px, py))); c.fill();
+      });
+    }
+  });
+
+  const spots = layer((g, at) => {
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 520; i++) {
+      const r = (0.003 + rnd() * 0.011) * pxPerM;
+      at(rnd() * size, rnd() * size, r + 2, (c) => {
+        c.scale(1, 0.8 + rnd() * 0.4);
+        c.fillStyle = `rgba(255,255,255,${0.03 + rnd() * 0.04})`;
+        c.strokeStyle = `rgba(255,255,255,${0.18 + rnd() * 0.3})`;
+        c.lineWidth = 0.8 + rnd() * 1.2;
+        c.beginPath(); c.arc(0, 0, r, 0, Math.PI * 2); c.fill(); c.stroke();
+      });
+    }
+  });
+
+  const data = new Uint8Array(size * size * 4);
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = swirls[i];
+    data[i + 1] = chips[i];
+    data[i + 2] = spots[i];
+    data[i + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.anisotropy = 8;
+  tex.needsUpdate = true;
+  return tex;
 }
 
 function makePaint(uniforms) {
@@ -146,6 +275,7 @@ function makePaint(uniforms) {
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>\n${HEADER}`)
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>\n${WEAR_LIGHTING}`)
+      .replace('#include <aomap_fragment>', `#include <aomap_fragment>\n${WEAR_GLINT}`)
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>\n${OVERLAYS}`);
   };
   return m;

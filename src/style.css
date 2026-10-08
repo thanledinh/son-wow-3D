@@ -379,6 +379,16 @@ img, canvas, svg { display: block; }
 .footer__row { display: flex; flex-wrap: wrap; gap: 14px 30px; align-items: center; justify-content: space-between; }
 .footer__credit a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 255, 255, 0.3); }
 
+/* ?rec: the one button that starts a self-recording */
+.rec-btn {
+  position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%); z-index: 120;
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 16px 26px; border-radius: 999px; border: 0;
+  background: var(--accent); color: #141006; font: 700 16px var(--font); cursor: pointer;
+  box-shadow: 0 14px 50px -10px rgba(244, 178, 35, 0.75);
+}
+.rec-btn i { width: 12px; height: 12px; border-radius: 50%; background: #d1271b; box-shadow: 0 0 0 4px rgba(209, 39, 27, 0.25); }
+
 @media (prefers-reduced-motion: reduce) {
   .hint-dot, .story__scroll i { animation: none; }
 }
