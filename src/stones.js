@@ -5,10 +5,11 @@ import { CHIP_SLOTS } from './car.js';
 
 // Where the scripted stones land (car space x, y on the nose) and when, as a fraction of the impact chapter.
 // The first one is the hero impact the camera flies to; it sits on the side the camera sees.
+// Urus: the forward-facing yellow band above the grille, then the bonnet's leading edge.
 const SCRIPTED = [
-  { x: -0.42, y: 0.6, hit: 0.46 },
-  { x: 0.5, y: 0.44, hit: 0.62 },
-  { x: 0.08, y: 0.7, hit: 0.78 },
+  { x: -0.42, y: 0.75, hit: 0.46 },
+  { x: 0.4, y: 0.75, hit: 0.62 },
+  { x: 0.08, y: 0.95, hit: 0.78 },
 ];
 const USER_SLOT = CHIP_SLOTS - 1;
 const FLY = 0.24; // share of the chapter a stone spends in the air

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { gltfLoader, asset, HEX_GLSL } from './studio.js';
 
-// Car space = the GLB root: y up, front of the car at -Z, rear at +Z, length ≈ 4.6 m.
-export const CAR_LEN = { front: -2.4, rear: 2.4 };
+// Car space = the GLB root: y up, front of the car at -Z, rear at +Z. Lamborghini Urus: 5.11 m long, 1.65 m tall.
+export const CAR_LEN = { front: -2.56, rear: 2.56 };
 export const CHIP_SLOTS = 4;
 const WHEEL_RADIUS = 0.34;
 const WEAR_TILE = 1.4; // metres of paint per repeat of the wear texture
@@ -27,7 +27,7 @@ vec2 carPlane() {
 float wornMask() { return uCompare * (1.0 - smoothstep(uSplit - 0.01, uSplit + 0.01, vCarPos.z)); }
 // Stones hit the nose and the forward-facing panels; the roof and rear barely get any.
 float chipDensity() {
-  float nose = 1.0 - smoothstep(-2.45, -0.9, vCarPos.z);
+  float nose = 1.0 - smoothstep(-2.6, -1.0, vCarPos.z);
   return clamp(nose * (0.35 + 0.65 * clamp(-vCarNrm.z, 0.0, 1.0)) + 0.03, 0.0, 1.0);
 }
 vec3 gWear; float gChip; // set before lighting, reused after it
@@ -83,7 +83,7 @@ const OVERLAYS = /* glsl */ `
   float lens = exp(-pow((r - uRadius * 0.92) * 90.0, 2.0)) * uHover;
 
   // --- film laminated front → rear on scroll
-  float edge = mix(-2.75, 2.75, uWrap);
+  float edge = mix(-2.9, 2.9, uWrap);
   float wrapped = 1.0 - smoothstep(edge - 0.05, edge + 0.05, vCarPos.z);
   float scan = exp(-pow((vCarPos.z - edge) * 7.0, 2.0)) * step(0.002, uWrap) * step(uWrap, 0.998);
 
@@ -254,13 +254,14 @@ function makeWearTexture(size = 2048) {
 }
 
 function makePaint(uniforms) {
+  // Giallo: a solid yellow with a hint of pearl under a thick clearcoat
   const m = new THREE.MeshPhysicalMaterial({
-    color: 0x07080a,
-    metalness: 0.55,
-    roughness: 0.3,
+    color: 0xf2b200,
+    metalness: 0.2,
+    roughness: 0.32,
     clearcoat: 1,
     clearcoatRoughness: 0.02,
-    envMapIntensity: 1.3,
+    envMapIntensity: 1.15,
   });
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, uniforms);
@@ -279,21 +280,6 @@ function makePaint(uniforms) {
       .replace('#include <opaque_fragment>', `#include <opaque_fragment>\n${OVERLAYS}`);
   };
   return m;
-}
-
-// The model's green accents become the brand amber.
-function recolor(mat) {
-  mat.onBeforeCompile = (sh) => {
-    sh.fragmentShader = sh.fragmentShader.replace(
-      '#include <map_fragment>',
-      `#include <map_fragment>
-      {
-        float gEx = diffuseColor.g - max(diffuseColor.r, diffuseColor.b);
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0, 0.56, 0.07) * diffuseColor.g * 1.3, smoothstep(0.05, 0.16, gEx));
-      }`,
-    );
-  };
-  mat.needsUpdate = true;
 }
 
 /**
@@ -345,7 +331,6 @@ export async function loadCar(uniforms) {
     } else if (o.material && !seen.has(o.material)) {
       seen.add(o.material);
       o.material.envMapIntensity = 1.15;
-      if (o.material.map) recolor(o.material);
     }
   });
   const roll = setupWheels(root);

@@ -1,13 +1,40 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import gsap from 'gsap';
-import { makeStudioEnv, radialTexture, whenVisible, isTouch } from './studio.js';
+import { makeStudioEnv, radialTexture, whenVisible, isTouch, hdrLoader, asset } from './studio.js';
 import { loadCar, createUniforms, CAR_LEN } from './car.js';
 import { createHood } from './hood.js';
 import { createStones } from './stones.js';
+import { createHeroWord, createCallouts } from './hero.js';
 
 const PI = Math.PI;
 const BG = 0x060708;
+
+// Reflector with a 13-tap poisson blur: a polished studio floor blurs what it reflects a little.
+const SOFT_REFLECTOR = {
+  ...Reflector.ReflectorShader,
+  name: 'SoftReflectorShader',
+  uniforms: { ...Reflector.ReflectorShader.uniforms, uBlur: { value: 0.0042 } },
+  fragmentShader: /* glsl */ `
+    uniform vec3 color; uniform sampler2D tDiffuse; uniform float uBlur;
+    varying vec4 vUv;
+    #include <logdepthbuf_pars_fragment>
+    float blendOverlay(float b, float l) { return b < 0.5 ? (2.0 * b * l) : (1.0 - 2.0 * (1.0 - b) * (1.0 - l)); }
+    vec3 blendOverlay(vec3 b, vec3 l) { return vec3(blendOverlay(b.r, l.r), blendOverlay(b.g, l.g), blendOverlay(b.b, l.b)); }
+    const vec2 P[12] = vec2[](
+      vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
+      vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),
+      vec2(0.507, 0.064), vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec2 uv = vUv.xy / vUv.w;
+      vec3 acc = texture2D(tDiffuse, uv).rgb;
+      for (int i = 0; i < 12; i++) acc += texture2D(tDiffuse, uv + P[i] * uBlur).rgb;
+      gl_FragColor = vec4(blendOverlay(acc / 13.0, color), 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+};
 
 // Chapter windows on the scroll timeline (timeline seconds) and where each one is fully shown.
 const CHAPTERS = [
@@ -42,20 +69,34 @@ export function initStory({ section, sticky, canvas, cursor }) {
   const camera = new THREE.PerspectiveCamera(30, 1, 0.03, 100);
   const target = new THREE.Vector3();
 
-  // ---- floor: real mirror, faded into the dark with a radial mask
-  const mirror = new Reflector(new THREE.PlaneGeometry(40, 40), { color: 0x5a5a5a, textureWidth: 1024, textureHeight: 1024 });
+  // the photographed studio replaces the hand-built one as soon as its HDRI arrives
+  const envReady = hdrLoader.loadAsync(asset('textures/studio.hdr')).then((hdr) => {
+    const old = scene.environment;
+    scene.environment = makeStudioEnv(renderer, { hdr, strips: 0.7 });
+    old.dispose();
+    hdr.dispose();
+  }).catch((err) => console.warn('studio HDRI unavailable, keeping the procedural studio', err));
+
+  // ---- floor: glossy epoxy, not a perfect mirror — the reflection is softened, then faded into the dark
+  const mirror = new Reflector(new THREE.PlaneGeometry(40, 40), { color: 0x5a5a5a, textureWidth: 1024, textureHeight: 1024, shader: SOFT_REFLECTOR });
   mirror.rotation.x = -PI / 2;
   scene.add(mirror);
   const fade = new THREE.Mesh(
     new THREE.PlaneGeometry(26, 26),
-    new THREE.MeshBasicMaterial({ color: BG, transparent: true, depthWrite: false, alphaMap: radialTexture('rgb(140,140,140)', 'rgb(255,255,255)', 512) }),
+    new THREE.MeshBasicMaterial({
+      color: BG, transparent: true, depthWrite: false, alphaMap: radialTexture('rgb(140,140,140)', 'rgb(255,255,255)', 512),
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, // never z-fight the mirror far away
+    }),
   );
   fade.rotation.x = -PI / 2;
-  fade.position.y = 0.003;
+  fade.position.y = 0.01;
   scene.add(fade);
-  const outer = new THREE.Mesh(new THREE.RingGeometry(12.9, 40, 64), new THREE.MeshBasicMaterial({ color: BG }));
+  const outer = new THREE.Mesh(
+    new THREE.RingGeometry(12.9, 40, 64),
+    new THREE.MeshBasicMaterial({ color: BG, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }),
+  );
   outer.rotation.x = -PI / 2;
-  outer.position.y = 0.003;
+  outer.position.y = 0.01;
   scene.add(outer);
 
   // ---- car rig: carGroup (float) → spin (faces +Z) → car root
@@ -64,9 +105,22 @@ export function initStory({ section, sticky, canvas, cursor }) {
   spin.rotation.y = PI;
   carGroup.add(spin);
   scene.add(carGroup);
+  // contact shadow: ambient occlusion of the Urus on the floor, baked in Blender (blender/urus.blend)
+  const aoTex = new THREE.TextureLoader().load(asset('textures/car-shadow.jpg'));
   const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.9, 5.6),
-    new THREE.MeshBasicMaterial({ map: radialTexture('rgba(0,0,0,0.92)', 'rgba(0,0,0,0)'), transparent: true, depthWrite: false }),
+    new THREE.PlaneGeometry(3.8, 6.6),
+    new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: { map: { value: aoTex }, uStrength: { value: 0.96 } },
+      vertexShader: /* glsl */ `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: /* glsl */ `
+        uniform sampler2D map; uniform float uStrength;
+        varying vec2 vUv;
+        void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, pow(1.0 - texture2D(map, vUv).r, 1.1) * uStrength); }`,
+    }),
   );
   shadow.rotation.x = -PI / 2;
   shadow.position.y = 0.006;
@@ -85,11 +139,13 @@ export function initStory({ section, sticky, canvas, cursor }) {
   const uniforms = createUniforms();
   const hood = createHood({ overlay: ch.layers, isTouch });
   const stones = createStones({ uniforms });
+  const word = createHeroWord(scene);
+  const callouts = createCallouts({ el: ch.hero.querySelector('#heroCallouts'), isTouch });
 
   // ---- story state (intro + scroll timeline write here)
   // pfit / pY / pEl only apply on portrait screens: pull back so the whole car fits the narrow width,
   // and look down a little more so a low 3/4 view doesn't read as a flat strip on a phone.
-  const state = { az: 0.62, el: 0.08, dist: 8.6, tx: 0, ty: 0.55, tz: 0.2, shiftY: 0.02, pfit: 2, pY: 0.02, pEl: 0.07, wrap: 0, impact: 0 };
+  const state = { az: 0.62, el: 0.08, dist: 9.3, tx: 0, ty: 0.78, tz: 0.2, shiftX: -0.07, shiftY: 0.02, pfit: 2, pY: -0.06, pEl: 0.07, wrap: 0, impact: 0 };
   const introOff = { az: -0.5, el: 0.06, dist: 6 }; // decays to zero so it never fights the scroll timeline
   const heat = { t: 28 };
   const cmp = { compare: 0, split: 0 };
@@ -97,14 +153,16 @@ export function initStory({ section, sticky, canvas, cursor }) {
   let mode = 'hero';
   let tl = null;
   let car = null;
+  word.place(state.az, new THREE.Vector3(state.tx, state.ty, state.tz));
 
-  const ready = Promise.all([loadCar(uniforms), hood.ready, stones.ready]).then(async ([c]) => {
+  const ready = Promise.all([loadCar(uniforms), hood.ready, stones.ready, word.ready, envReady]).then(async ([c]) => {
     car = c;
     spin.add(c.root);
     c.root.add(stones.group);
     hood.attach(c.root);
     scene.updateMatrixWorld(true);
     stones.aim(c.root, c.paint, [c.body].filter(Boolean));
+    callouts.snap(c.root, [c.paint, c.body].filter(Boolean));
     await warmUp();
     buildTimeline();
   });
@@ -188,8 +246,8 @@ export function initStory({ section, sticky, canvas, cursor }) {
   const splitFromPointer = () => {
     if (!car) return;
     const sx = nearSideX();
-    const a = carToScreen(new THREE.Vector3(sx, 0.6, CAR_LEN.front));
-    const b = carToScreen(new THREE.Vector3(sx, 0.6, CAR_LEN.rear));
+    const a = carToScreen(new THREE.Vector3(sx, 0.8, CAR_LEN.front));
+    const b = carToScreen(new THREE.Vector3(sx, 0.8, CAR_LEN.rear));
     userSplit = THREE.MathUtils.clamp((pointer.x * W - a.x) / (b.x - a.x), 0, 1);
   };
 
@@ -241,7 +299,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
     camera.aspect = W / H;
     camera.updateProjectionMatrix();
     renderer.getDrawingBufferSize(uniforms.uRes.value);
-    mirror.getRenderTarget().setSize(Math.round(W * dpr * 0.6), Math.round(H * dpr * 0.6));
+    mirror.getRenderTarget().setSize(Math.round(W * dpr * 0.5), Math.round(H * dpr * 0.5));
   };
   resize();
   new ResizeObserver(resize).observe(canvas);
@@ -269,6 +327,8 @@ export function initStory({ section, sticky, canvas, cursor }) {
 
   // ---- per frame
   let frame = 0;
+  let lastTime = 0;
+  const torch = { x: 0.5, y: 0.5 };
   let cursorKey = '';
   let lastPct = -1;
   let lastTemp = -1;
@@ -328,13 +388,24 @@ export function initStory({ section, sticky, canvas, cursor }) {
     camera.lookAt(target);
     scene.fog.near = camDist + 2;
     scene.fog.far = camDist + 16;
-    camera.setViewOffset(W, H, 0, (portrait ? state.pY : state.shiftY) * H, W, H);
+    // shiftX pushes the car right of the hero headline; squarer screens need a bigger push
+    const sx = portrait ? 0 : state.shiftX * W * (camera.aspect < 1.6 ? 1.35 : 1);
+    camera.setViewOffset(W, H, sx, (portrait ? state.pY : state.shiftY) * H, W, H);
 
     // shader inputs
     uniforms.uWrap.value = state.wrap;
-    const torchOn = pointer.inside && mode === 'hero' ? 1 : 0;
+    camera.updateMatrixWorld();
+    const dt = Math.min(0.1, time - (lastTime || time));
+    lastTime = time;
+    // a lit hero callout points the film torch at its spot on the car
+    const lit = car && mode === 'hero' ? callouts.update(dt, camera, car.root, W, H, pointer) : null;
+    word.update(time, camera, pointer);
+    const torchOn = (pointer.inside || lit) && mode === 'hero' ? 1 : 0;
     uniforms.uHover.value += (torchOn - uniforms.uHover.value) * 0.08;
-    uniforms.uMouse.value.set(pointer.sx, 1 - pointer.sy);
+    const aimX = lit ? lit.x / W : pointer.sx, aimY = lit ? lit.y / H : pointer.sy;
+    torch.x += (aimX - torch.x) * (lit ? 0.14 : 1);
+    torch.y += (aimY - torch.y) * (lit ? 0.14 : 1);
+    uniforms.uMouse.value.set(torch.x, 1 - torch.y);
     uniforms.uCompare.value = cmp.compare;
     uniforms.uSplit.value = THREE.MathUtils.lerp(CAR_LEN.front - 0.2, CAR_LEN.rear, userSplit ?? cmp.split);
     if (car) {
@@ -359,7 +430,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
     syncReveals();
 
     if (mode === 'compare' && car) {
-      const p = carToScreen(new THREE.Vector3(nearSideX(), 0.62, uniforms.uSplit.value));
+      const p = carToScreen(new THREE.Vector3(nearSideX(), 0.85, uniforms.uSplit.value));
       knob.style.transform = `translate(${p.x}px, ${p.y}px)`;
     }
     const pct = Math.round(state.wrap * 100);
@@ -391,7 +462,7 @@ export function initStory({ section, sticky, canvas, cursor }) {
     const noseW = stones.targets.reduce((a, t) => a.add(w(t.point)), new THREE.Vector3()).divideScalar(stones.targets.length);
     noseW.y += 0.05;
     const hoodW = w(hood.center());
-    const anat = new THREE.Vector3(0, 0.55, 0).lerp(hoodW, 0.8);
+    const anat = new THREE.Vector3(0, 0.8, 0).lerp(hoodW, 0.8);
     const S = hood.state;
     // status line follows the scripted heal in whichever direction the visitor scrolls
     const statusAt = (forward, backward) => () => setStatus(tl.scrollTrigger.direction === 1 ? forward : backward);
@@ -404,7 +475,8 @@ export function initStory({ section, sticky, canvas, cursor }) {
       // 01 → 02: hero to side profile while the film laminates front → rear
       .to(ch.hero, { autoAlpha: 0, y: -40, duration: 0.3, ease: 'power2.in' }, 0)
       .to([hint, sticky.querySelector('.story__scroll')], { autoAlpha: 0, duration: 0.2 }, 0)
-      .to(state, { az: PI / 2, el: 0.06, dist: 9.2, tx: 0, ty: 0.5, tz: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, pEl: 0, duration: 1 }, 0)
+      .fromTo(word.state, { scroll: 1 }, { scroll: 0, duration: 0.35, ease: 'power1.in' }, 0)
+      .to(state, { az: PI / 2, el: 0.06, dist: 9.9, tx: 0, ty: 0.72, tz: 0, shiftX: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, pEl: 0, duration: 1 }, 0)
       .to(state, { wrap: 1, duration: 1.1, ease: 'none' }, 0.3)
       .fromTo(ch.wrap, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 0.45)
       .to(ch.wrap, { autoAlpha: 0, duration: 0.25 }, 1.65)
@@ -433,15 +505,16 @@ export function initStory({ section, sticky, canvas, cursor }) {
       .to(S, { explode: 0, duration: 0.5 }, LAYER_DWELL[1])
       .to(S, { appear: 0, duration: 0.25 }, LAYER_DWELL[1] + 0.35)
       // 06: full side — years without film vs with film
-      .to(state, { az: PI / 2, el: 0.06, dist: 8.9, tx: 0, ty: 0.5, tz: 0, shiftY: 0.06, pfit: 2, pY: 0.0, duration: 0.9 }, 10.3)
+      .to(state, { az: PI / 2, el: 0.06, dist: 9.6, tx: 0, ty: 0.72, tz: 0, shiftY: 0.06, pfit: 2, pY: 0.0, duration: 0.9 }, 10.3)
       .to(cmp, { compare: 1, duration: 0.3 }, 11.0)
       .fromTo(cmp, { split: 0 }, { split: 0.5, duration: 0.6, ease: 'expo.out' }, 11.1)
       .fromTo(ch.compare, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 11.1)
       .to(ch.compare, { autoAlpha: 0, duration: 0.2 }, 12.55)
       .to(cmp, { compare: 0, duration: 0.3 }, 12.55)
       // 07: call to action
-      .to(state, { az: 0.42, el: 0.1, dist: 10.4, tx: 0, ty: 0.55, tz: 0.3, shiftY: 0.02, pfit: 1.15, pY: 0.02, pEl: 0.06, duration: 0.9 }, 12.7)
+      .to(state, { az: 0.42, el: 0.1, dist: 11.2, tx: 0, ty: 0.78, tz: 0.3, shiftY: 0.02, pfit: 1.15, pY: 0.02, pEl: 0.06, duration: 0.9 }, 12.7)
       .fromTo(ch.outro, { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 13.25)
+      .to(word.state, { scroll: 0.85, duration: 0.6 }, 12.95)
       .to({}, { duration: 0.6 }, 13.6);
     if (import.meta.env.DEV) window.__story = { tl, state, stones, camera, car, scene, renderer, mirror };
   }
@@ -462,9 +535,9 @@ export function initStory({ section, sticky, canvas, cursor }) {
       .to(introOff, { dist: 0, az: 0, el: 0, duration: 2.8, ease: 'expo.out' }, 0)
       .to('.ch--hero .eyebrow', { opacity: 1, duration: 0.8 }, 0.25)
       .to('.hero__title .line > span', { y: 0, duration: 1.3, stagger: 0.1, ease: 'expo.out' }, 0.35)
-      .to('.hero__sub', { opacity: 1, duration: 1 }, 0.9)
-      .to('.hero__cta', { opacity: 1, duration: 1 }, 1.05)
-      .to(['.story__hint', '.story__scroll', '.rail'], { opacity: 1, duration: 1 }, 1.4);
+      .to(word.state, { intro: 1, duration: 2.2, ease: 'power2.out' }, 0.5)
+      .to(['.story__hint', '.story__scroll', '.rail'], { opacity: 1, duration: 1 }, 1.4)
+      .add(() => callouts.show(), 1.6);
 
   // ---- demo mode (?demo): a hands-free run through the story for screen recordings
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
