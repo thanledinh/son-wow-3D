@@ -1,53 +1,39 @@
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import gsap from 'gsap';
-import { makeStudioEnv, radialTexture, whenVisible, isTouch, hdrLoader, asset } from './studio.js';
+import { makeStudioEnv, radialTexture, whenVisible, isTouch, hdrLoader, asset, SOFT_REFLECTOR } from './studio.js';
 import { loadCar, createUniforms, CAR_LEN } from './car.js';
 import { createHood } from './hood.js';
 import { createStones } from './stones.js';
 import { createHeroWord, createCallouts } from './hero.js';
+import { createCutter } from './cutter.js';
+import { createBurst } from './burst.js';
 
 const PI = Math.PI;
 const BG = 0x060708;
 
-// Reflector with a 13-tap poisson blur: a polished studio floor blurs what it reflects a little.
-const SOFT_REFLECTOR = {
-  ...Reflector.ReflectorShader,
-  name: 'SoftReflectorShader',
-  uniforms: { ...Reflector.ReflectorShader.uniforms, uBlur: { value: 0.0042 } },
-  fragmentShader: /* glsl */ `
-    uniform vec3 color; uniform sampler2D tDiffuse; uniform float uBlur;
-    varying vec4 vUv;
-    #include <logdepthbuf_pars_fragment>
-    float blendOverlay(float b, float l) { return b < 0.5 ? (2.0 * b * l) : (1.0 - 2.0 * (1.0 - b) * (1.0 - l)); }
-    vec3 blendOverlay(vec3 b, vec3 l) { return vec3(blendOverlay(b.r, l.r), blendOverlay(b.g, l.g), blendOverlay(b.b, l.b)); }
-    const vec2 P[12] = vec2[](
-      vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
-      vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),
-      vec2(0.507, 0.064), vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));
-    void main() {
-      #include <logdepthbuf_fragment>
-      vec2 uv = vUv.xy / vUv.w;
-      vec3 acc = texture2D(tDiffuse, uv).rgb;
-      for (int i = 0; i < 12; i++) acc += texture2D(tDiffuse, uv + P[i] * uBlur).rgb;
-      gl_FragColor = vec4(blendOverlay(acc / 13.0, color), 1.0);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`,
-};
+// Two scenes from the PPF film (blender/ppf-panels.blend) sit inside the story: the shop's plotter cutting the hood
+// piece, which then flies onto the bonnet (CUT, right after the hero), and every panel's film bursting off the car
+// (BURST, after the layers). Later chapters keep their original timings, shifted by these blocks.
+const CUT = 3.6;
+const BURST = 2.4;
+const A = (t) => t + CUT;          // wrap … layers
+const B = (t) => t + CUT + BURST;  // compare, outro
 
 // Chapter windows on the scroll timeline (timeline seconds) and where each one is fully shown.
 const CHAPTERS = [
   { id: 'hero', from: 0, to: 0.4, at: 0 },
-  { id: 'wrap', from: 0.4, to: 1.9, at: 1.15 },
-  { id: 'impact', from: 1.9, to: 3.75, at: 3.3 },
-  { id: 'heal', from: 3.75, to: 6.05, at: 5.3 },
-  { id: 'layers', from: 6.05, to: 10.4, at: 8.0 },
-  { id: 'compare', from: 10.4, to: 12.8, at: 11.9 },
-  { id: 'outro', from: 12.8, to: Infinity, at: 13.6 },
+  { id: 'cut', from: 0.4, to: CUT, at: 1.9 },
+  { id: 'wrap', from: CUT, to: A(1.9), at: A(1.15) },
+  { id: 'impact', from: A(1.9), to: A(3.75), at: A(3.3) },
+  { id: 'heal', from: A(3.75), to: A(6.05), at: A(5.3) },
+  { id: 'layers', from: A(6.05), to: A(10.4), at: A(8.0) },
+  { id: 'burst', from: A(10.4), to: B(10.4), at: A(11.5) },
+  { id: 'compare', from: B(10.4), to: B(12.8), at: B(11.9) },
+  { id: 'outro', from: B(12.8), to: Infinity, at: B(13.6) },
 ];
-const IMPACT = [2.45, 3.75]; // stones fly inside this window
-const LAYER_DWELL = [7.85, 10.0];
+const IMPACT = [A(2.45), A(3.75)]; // stones fly inside this window
+const LAYER_DWELL = [A(7.85), A(10.0)];
 
 /**
  * One car in a dark studio carries the whole story: film torch → wrap → lab stone-chip test →
@@ -138,6 +124,8 @@ export function initStory({ section, sticky, canvas, cursor }) {
 
   const uniforms = createUniforms();
   const hood = createHood({ overlay: ch.layers, isTouch });
+  const cutter = createCutter();
+  const burst = createBurst();
   const stones = createStones({ uniforms });
   const word = createHeroWord(scene);
   const callouts = createCallouts({ el: ch.hero.querySelector('#heroCallouts'), isTouch });
@@ -155,11 +143,13 @@ export function initStory({ section, sticky, canvas, cursor }) {
   let car = null;
   word.place(state.az, new THREE.Vector3(state.tx, state.ty, state.tz));
 
-  const ready = Promise.all([loadCar(uniforms), hood.ready, stones.ready, word.ready, envReady]).then(async ([c]) => {
+  const ready = Promise.all([loadCar(uniforms), hood.ready, stones.ready, word.ready, envReady, cutter.ready, burst.ready]).then(async ([c]) => {
     car = c;
     spin.add(c.root);
     c.root.add(stones.group);
     hood.attach(c.root);
+    cutter.attach(c.root);
+    burst.attach(c.root);
     scene.updateMatrixWorld(true);
     stones.aim(c.root, c.paint, [c.body].filter(Boolean));
     callouts.snap(c.root, [c.paint, c.body].filter(Boolean));
@@ -427,6 +417,8 @@ export function initStory({ section, sticky, canvas, cursor }) {
     }
 
     if (car) hood.update(time, camera, car.root, W, H);
+    cutter.update(W, H);
+    burst.update();
     syncReveals();
 
     if (mode === 'compare' && car) {
@@ -471,52 +463,85 @@ export function initStory({ section, sticky, canvas, cursor }) {
       defaults: { ease: 'power1.inOut' },
       scrollTrigger: { trigger: section, start: 'top top', end: 'bottom bottom', scrub: 1 },
     });
+    // the plotter stands off the car's left side (car space -X); these are its camera targets
+    const cutWide = w(new THREE.Vector3(-3.3, 1.0, -0.6));
+    const cutClose = w(new THREE.Vector3(-3.85, 1.0, -0.55));
+    const flyMid = w(new THREE.Vector3(-1.3, 1.25, -1.2));
+    const K = cutter.state;
+    const Bs = burst.state;
+
     tl
-      // 01 → 02: hero to side profile while the film laminates front → rear
+      // 01 → 02: the hero fades and the camera crosses to the shop's ZAPPA plotter
       .to(ch.hero, { autoAlpha: 0, y: -40, duration: 0.3, ease: 'power2.in' }, 0)
       .to([hint, sticky.querySelector('.story__scroll')], { autoAlpha: 0, duration: 0.2 }, 0)
       .fromTo(word.state, { scroll: 1 }, { scroll: 0, duration: 0.35, ease: 'power1.in' }, 0)
-      .to(state, { az: PI / 2, el: 0.06, dist: 9.9, tx: 0, ty: 0.72, tz: 0, shiftX: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, pEl: 0, duration: 1 }, 0)
-      .to(state, { wrap: 1, duration: 1.1, ease: 'none' }, 0.3)
-      .fromTo(ch.wrap, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 0.45)
-      .to(ch.wrap, { autoAlpha: 0, duration: 0.25 }, 1.65)
-      // 03: low on the nose, the lab fires gravel at the paint
-      .to(state, { az: 0.95, el: 0.12, dist: 4.2, tx: noseW.x, ty: noseW.y, tz: noseW.z, shiftY: 0.02, pfit: 0.8, pY: 0.02, duration: 0.8 }, 1.75)
-      .fromTo(ch.impact, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 2.25)
+      .fromTo(K, { show: 0 }, { show: 1, duration: 0.01 }, 0.02)
+      .to(state, { az: -1.22, el: 0.75, dist: 4.0, tx: cutWide.x, ty: cutWide.y, tz: cutWide.z, shiftX: 0, shiftY: 0.02, pfit: 1.0, pY: 0.02, pEl: 0, duration: 0.9 }, 0)
+      .fromTo(ch.cut, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 0.6)
+      // the knife runs the hood outline; the film jogs under it, the roll turns
+      .to(state, { az: -1.3, el: 0.62, dist: 3.3, tx: cutClose.x, ty: cutClose.y, tz: cutClose.z, duration: 0.7 }, 0.95)
+      .to(K, { cut: 1, duration: 1.5, ease: 'none' }, 0.9)
+      .to(state, { az: -1.22, el: 0.75, dist: 4.0, tx: cutWide.x, ty: cutWide.y, tz: cutWide.z, duration: 0.6 }, 1.85)
+      .to(K, { push: 1, duration: 0.3 }, 2.4)
+      .to(ch.cut, { autoAlpha: 0, duration: 0.2 }, 2.55)
+      // the finished piece lifts off the table and flies onto the bonnet
+      .to(state, { az: 0.42, el: 0.42, dist: 6.6, tx: flyMid.x, ty: flyMid.y, tz: flyMid.z, duration: 0.6 }, 2.55)
+      .to(K, { lift: 1, duration: 0.25 }, 2.7)
+      .to(K, { fly: 1, duration: 0.6 }, 2.95)
+      .to(state, { az: 0.85, el: 0.38, dist: 5.2, tx: hoodW.x, ty: hoodW.y + 0.2, tz: hoodW.z, duration: 0.55 }, 3.1)
+      .to(K, { show: 0, duration: 0.01 }, CUT + 0.02) // the plotter leaves before the camera swings round
+      .to(K, { piece: 0, duration: 0.35 }, CUT + 0.05)
+      // 03: side profile while the film laminates front → rear
+      .to(state, { az: PI / 2, el: 0.06, dist: 9.9, tx: 0, ty: 0.72, tz: 0, shiftX: 0, shiftY: 0.12, pfit: 1.7, pY: 0.16, pEl: 0, duration: 1 }, CUT)
+      .to(state, { wrap: 1, duration: 1.1, ease: 'none' }, A(0.3))
+      .fromTo(ch.wrap, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, A(0.45))
+      .to(ch.wrap, { autoAlpha: 0, duration: 0.25 }, A(1.65))
+      // 04: low on the nose, the lab fires gravel at the paint
+      .to(state, { az: 0.95, el: 0.12, dist: 4.2, tx: noseW.x, ty: noseW.y, tz: noseW.z, shiftY: 0.02, pfit: 0.8, pY: 0.02, duration: 0.8 }, A(1.75))
+      .fromTo(ch.impact, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, A(2.25))
       .fromTo(state, { impact: 0 }, { impact: 1, duration: IMPACT[1] - IMPACT[0], ease: 'none' }, IMPACT[0])
-      .to(ch.impact, { autoAlpha: 0, duration: 0.2 }, 3.6)
-      // 04: fly into the impact mark — it glows warm and fades as the top coat heals
-      .to(state, { az: zoomAz, el: zoomEl, dist: 0.62, tx: hitW.x, ty: hitW.y, tz: hitW.z, shiftY: 0, pfit: 0.35, pY: 0.0, duration: 0.85 }, 3.55)
-      .fromTo(ch.heal, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 4.25)
-      .call(statusAt('healing', 'idle'), null, 4.5)
-      .to(stones.scripted, { heat: 1, duration: 0.3 }, 4.5)
-      .to(heat, { t: 62, duration: 0.3 }, 4.5)
-      .to(stones.scripted, { fade: 0, duration: 0.9, ease: 'power2.inOut' }, 4.65)
-      .to(stones.scripted, { heat: 0, duration: 0.4 }, 5.35)
-      .to(heat, { t: 28, duration: 0.5 }, 5.35)
-      .call(statusAt('done', 'healing'), null, 5.5)
-      .to(ch.heal, { autoAlpha: 0, duration: 0.2 }, 5.85)
-      // 05: back out, the film rises out of the bonnet and separates into its five layers
-      .to(state, { az: 0.9, el: 0.24, dist: 7.6, tx: anat.x, ty: anat.y + 0.42, tz: anat.z, shiftY: 0.02, pfit: 0.3, pY: 0.06, duration: 1 }, 5.9)
-      .to(S, { appear: 1, duration: 0.35 }, 6.75)
-      .to(S, { explode: 1, duration: 0.7, ease: 'power2.inOut' }, 6.85)
-      .fromTo(ch.layers, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 7.35)
+      .to(ch.impact, { autoAlpha: 0, duration: 0.2 }, A(3.6))
+      // 05: fly into the impact mark — it glows warm and fades as the top coat heals
+      .to(state, { az: zoomAz, el: zoomEl, dist: 0.62, tx: hitW.x, ty: hitW.y, tz: hitW.z, shiftY: 0, pfit: 0.35, pY: 0.0, duration: 0.85 }, A(3.55))
+      .fromTo(ch.heal, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, A(4.25))
+      .call(statusAt('healing', 'idle'), null, A(4.5))
+      .to(stones.scripted, { heat: 1, duration: 0.3 }, A(4.5))
+      .to(heat, { t: 62, duration: 0.3 }, A(4.5))
+      .to(stones.scripted, { fade: 0, duration: 0.9, ease: 'power2.inOut' }, A(4.65))
+      .to(stones.scripted, { heat: 0, duration: 0.4 }, A(5.35))
+      .to(heat, { t: 28, duration: 0.5 }, A(5.35))
+      .call(statusAt('done', 'healing'), null, A(5.5))
+      .to(ch.heal, { autoAlpha: 0, duration: 0.2 }, A(5.85))
+      // 06: back out, the film rises out of the bonnet and separates into its five layers
+      .to(state, { az: 0.9, el: 0.24, dist: 7.6, tx: anat.x, ty: anat.y + 0.42, tz: anat.z, shiftY: 0.02, pfit: 0.3, pY: 0.06, duration: 1 }, A(5.9))
+      .to(S, { appear: 1, duration: 0.35 }, A(6.75))
+      .to(S, { explode: 1, duration: 0.7, ease: 'power2.inOut' }, A(6.85))
+      .fromTo(ch.layers, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, A(7.35))
       .to(ch.layers, { autoAlpha: 0, duration: 0.2 }, LAYER_DWELL[1])
       .to(S, { explode: 0, duration: 0.5 }, LAYER_DWELL[1])
       .to(S, { appear: 0, duration: 0.25 }, LAYER_DWELL[1] + 0.35)
-      // 06: full side — years without film vs with film
-      .to(state, { az: PI / 2, el: 0.06, dist: 9.6, tx: 0, ty: 0.72, tz: 0, shiftY: 0.06, pfit: 2, pY: 0.0, duration: 0.9 }, 10.3)
-      .to(cmp, { compare: 1, duration: 0.3 }, 11.0)
-      .fromTo(cmp, { split: 0 }, { split: 0.5, duration: 0.6, ease: 'expo.out' }, 11.1)
-      .fromTo(ch.compare, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, 11.1)
-      .to(ch.compare, { autoAlpha: 0, duration: 0.2 }, 12.55)
-      .to(cmp, { compare: 0, duration: 0.3 }, 12.55)
-      // 07: call to action
-      .to(state, { az: 0.42, el: 0.1, dist: 11.2, tx: 0, ty: 0.78, tz: 0.3, shiftY: 0.02, pfit: 1.15, pY: 0.02, pEl: 0.06, duration: 0.9 }, 12.7)
-      .fromTo(ch.outro, { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 13.25)
-      .to(word.state, { scroll: 0.85, duration: 0.6 }, 12.95)
-      .to({}, { duration: 0.6 }, 13.6);
-    if (import.meta.env.DEV) window.__story = { tl, state, stones, camera, car, scene, renderer, mirror };
+      // 07: every panel's film lifts off the car — PPF covers all of it — then settles back
+      .to(state, { az: 0.45, el: 0.16, dist: 10.6, tx: 0, ty: 0.75, tz: 0, shiftY: 0.04, pfit: 1.7, pY: 0.06, duration: 0.7 }, A(10.35))
+      .to(Bs, { appear: 1, duration: 0.25 }, A(10.75))
+      .to(Bs, { explode: 1, duration: 0.7, ease: 'power2.out' }, A(10.9))
+      .fromTo(ch.burst, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, A(10.95))
+      .to(state, { az: 1.55, el: 0.22, dist: 10.2, duration: 1.0 }, A(11.1))
+      .to(Bs, { explode: 0, duration: 0.55, ease: 'power2.in' }, A(11.95))
+      .to(ch.burst, { autoAlpha: 0, duration: 0.2 }, A(12.45))
+      .to(Bs, { appear: 0, duration: 0.25 }, A(12.5))
+      // 08: full side — years without film vs with film
+      .to(state, { az: PI / 2, el: 0.06, dist: 9.6, tx: 0, ty: 0.72, tz: 0, shiftY: 0.06, pfit: 2, pY: 0.0, duration: 0.9 }, B(10.3))
+      .to(cmp, { compare: 1, duration: 0.3 }, B(11.0))
+      .fromTo(cmp, { split: 0 }, { split: 0.5, duration: 0.6, ease: 'expo.out' }, B(11.1))
+      .fromTo(ch.compare, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, B(11.1))
+      .to(ch.compare, { autoAlpha: 0, duration: 0.2 }, B(12.55))
+      .to(cmp, { compare: 0, duration: 0.3 }, B(12.55))
+      // 09: call to action
+      .to(state, { az: 0.42, el: 0.1, dist: 11.2, tx: 0, ty: 0.78, tz: 0.3, shiftY: 0.02, pfit: 1.15, pY: 0.02, pEl: 0.06, duration: 0.9 }, B(12.7))
+      .fromTo(ch.outro, { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: 0.3 }, B(13.25))
+      .to(word.state, { scroll: 0.85, duration: 0.6 }, B(12.95))
+      .to({}, { duration: 0.6 }, B(13.6));
+    if (import.meta.env.DEV) window.__story = { tl, state, stones, camera, car, scene, renderer, mirror, cutter, burst };
   }
 
   const scrollToChapter = (id, lenis) => {
@@ -571,32 +596,39 @@ export function initStory({ section, sticky, canvas, cursor }) {
     // 01 the film torch glides over the car
     await sweep([[0.36, 0.55], [0.45, 0.45], [0.55, 0.5], [0.62, 0.42], [0.5, 0.52]], 4200);
     point('pointerleave', 0.5, 0.5);
-    // 02 wrap
-    await glide(lenis, yAt(1.15), 4.5);
+    // 02 the plotter cuts the hood piece, which flies onto the bonnet
+    await glide(lenis, yAt(1.9), 5);
+    await glide(lenis, yAt(2.6), 3);
+    await glide(lenis, yAt(CUT), 3.5);
+    // 03 wrap
+    await glide(lenis, yAt(A(1.15)), 4.5);
     await wait(1600);
-    // 03 stone test, slowly so every hit reads
-    await glide(lenis, yAt(2.3), 2.2);
-    await glide(lenis, yAt(3.55), 6.5);
+    // 04 stone test, slowly so every hit reads
+    await glide(lenis, yAt(A(2.3)), 2.2);
+    await glide(lenis, yAt(A(3.55)), 6.5);
     await wait(600);
-    // 04 macro self-heal, then the visitor fires one more stone
-    await glide(lenis, yAt(5.3), 5.5);
+    // 05 macro self-heal, then the visitor fires one more stone
+    await glide(lenis, yAt(A(5.3)), 5.5);
     await wait(1200);
     point('pointermove', 0.47, 0.46);
     point('pointerdown', 0.47, 0.46, canvas);
     window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     await wait(4600);
-    // 05 the five layers rise out of the bonnet, one by one
-    await glide(lenis, yAt(7.85), 4);
-    await glide(lenis, yAt(9.95), 9);
-    // 06 before / after: drag the split back and forth
-    await glide(lenis, yAt(11.9), 4.5);
+    // 06 the five layers rise out of the bonnet, one by one
+    await glide(lenis, yAt(A(7.85)), 4);
+    await glide(lenis, yAt(A(9.95)), 9);
+    // 07 every panel's film bursts off the car and settles back
+    await glide(lenis, yAt(A(11.4)), 4);
+    await glide(lenis, yAt(A(12.6)), 3.5);
+    // 08 before / after: drag the split back and forth
+    await glide(lenis, yAt(B(11.9)), 4.5);
     await wait(900);
     point('pointerdown', 0.5, 0.5, canvas);
     await sweep([[0.5, 0.5], [0.34, 0.5], [0.66, 0.5], [0.5, 0.5]], 4200);
     window.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     point('pointerleave', 0.5, 0.5);
-    // 07 booking, then the rest of the page
-    await glide(lenis, yAt(13.6), 3.5);
+    // 09 booking, then the rest of the page
+    await glide(lenis, yAt(B(13.6)), 3.5);
     await wait(2000);
     await glide(lenis, document.documentElement.scrollHeight - window.innerHeight, 14);
   };

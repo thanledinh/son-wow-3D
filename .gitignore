@@ -9,3 +9,5 @@ dist/
 # Blender: autosave backups and the abandoned 95 MB film scene
 *.blend1
 blender/cinematic.blend
+# rendered previews and packaged copies of the PPF film (rebuilt from ppf-panels.blend)
+blender/export/

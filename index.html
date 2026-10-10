@@ -41,7 +41,7 @@
     <!-- ============ STORY: one car on the road, copy on both sides ============ -->
     <section class="story" id="top">
       <div class="story__sticky">
-        <canvas class="story__canvas" id="storyCanvas" aria-label="Xe 3D trong studio: phủ phim PPF, thử nghiệm đá văng, tự phục hồi, cấu tạo 5 lớp và so sánh hiệu quả"></canvas>
+        <canvas class="story__canvas" id="storyCanvas" aria-label="Xe 3D trong studio: máy cắt phim theo khuôn, phủ phim PPF, thử nghiệm đá văng, tự phục hồi, cấu tạo 5 lớp, phim trên toàn xe và so sánh hiệu quả"></canvas>
         <div class="story__vignette" aria-hidden="true"></div>
 
         <!-- 01 · Hero -->
@@ -61,10 +61,25 @@
           </div>
         </div>
 
-        <!-- 02 · Wrap -->
+        <!-- 02 · The plotter cuts the hood piece (src/cutter.js) -->
+        <div class="ch ch--cut" data-ch="cut">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">02</span>Cắt phim</p>
+            <h2 class="ch__title"><span class="ln"><span>Cắt chính xác</span></span><span class="ln"><span>theo khuôn từng xe.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Máy cắt ZAPPA M-1600 cắt phim theo khuôn riêng của từng dòng xe, đúng từng đường mép của nắp capo, rồi miếng phim được đưa lên xe để thi công.</p>
+            <dl class="specs specs--text rv">
+              <div><dt>Máy cắt</dt><dd><b>ZAPPA M-1600</b></dd></div>
+              <div><dt>Khổ phim</dt><dd><b>1,52 m</b></dd></div>
+            </dl>
+          </div>
+        </div>
+
+        <!-- 03 · Wrap -->
         <div class="ch ch--wrap" data-ch="wrap">
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">02</span>Thi công</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">03</span>Thi công</p>
             <h2 class="ch__title"><span class="ln"><span>Phủ kín</span></span><span class="ln"><span>từng chi tiết.</span></span></h2>
           </div>
           <div class="ch__r">
@@ -79,7 +94,7 @@
         <!-- 03 · Stone impact -->
         <div class="ch ch--impact" data-ch="impact">
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">03</span>Va đập</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">04</span>Va đập</p>
             <h2 class="ch__title"><span class="ln"><span>Thử nghiệm</span></span><span class="ln"><span>đá văng.</span></span></h2>
           </div>
           <div class="ch__r">
@@ -94,7 +109,7 @@
         <!-- 04 · Close-up self-heal -->
         <div class="ch ch--heal" data-ch="heal">
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">04</span>Tự phục hồi</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">05</span>Tự phục hồi</p>
             <h2 class="ch__title"><span class="ln"><span>Vết hằn mờ dần,</span></span><span class="ln"><span>bề mặt liền lại.</span></span></h2>
             <p class="ch__body rv">Dưới tác động của nhiệt từ nắng hoặc nước ấm, lớp phủ trên cùng tự phục hồi các vết hằn và vết xước nhỏ, không cần đánh bóng.</p>
           </div>
@@ -116,7 +131,7 @@
           <svg class="layers__lines" id="layersLines" aria-hidden="true"></svg>
           <div class="layers__labels" id="layersLabels"></div>
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">05</span>Cấu tạo</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">06</span>Cấu tạo</p>
             <h2 class="ch__title"><span class="ln"><span>5 lớp vật liệu.</span></span><span class="ln"><span>Một lá chắn.</span></span></h2>
             <article class="layers__detail rv" id="layersDetail" aria-live="polite">
               <div class="layers__head">
@@ -133,10 +148,22 @@
           <ol class="layers__list" id="layersList" aria-label="Chọn lớp phim"></ol>
         </div>
 
-        <!-- 06 · Before / after on the car -->
+        <!-- 07 · Every panel's film bursts off the car (src/burst.js) -->
+        <div class="ch ch--burst" data-ch="burst">
+          <div class="ch__l">
+            <p class="eyebrow rv"><span class="eyebrow__n">07</span>Toàn xe</p>
+            <h2 class="ch__title"><span class="ln"><span>Bảo vệ</span></span><span class="ln"><span>mọi chi tiết sơn.</span></span></h2>
+          </div>
+          <div class="ch__r">
+            <p class="ch__body rv">Phim được cắt riêng cho từng tấm thân xe: nắp capo, cản trước và sau, vè, cửa, hông, nóc và cốp, phủ kín toàn bộ bề mặt sơn.</p>
+            <p class="story__note rv">Hình ảnh mô phỏng mang tính minh hoạ.</p>
+          </div>
+        </div>
+
+        <!-- 08 · Before / after on the car -->
         <div class="ch ch--compare" data-ch="compare">
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">06</span>Hiệu quả</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">08</span>Hiệu quả</p>
             <h2 class="ch__title"><span class="ln"><span>Khác biệt</span></span><span class="ln"><span>theo năm tháng.</span></span></h2>
           </div>
           <div class="ch__r">
@@ -150,10 +177,10 @@
           </div>
         </div>
 
-        <!-- 07 · Outro -->
+        <!-- 09 · Outro -->
         <div class="ch ch--outro" data-ch="outro">
           <div class="ch__l">
-            <p class="eyebrow rv"><span class="eyebrow__n">07</span>Storedetailing</p>
+            <p class="eyebrow rv"><span class="eyebrow__n">09</span>Storedetailing</p>
             <h2 class="ch__title ch__title--xl"><span class="ln"><span>Một lớp phim.</span></span><span class="ln"><span>Mọi hành trình.</span></span></h2>
           </div>
           <div class="ch__r">
@@ -163,10 +190,12 @@
 
         <nav class="rail" aria-label="Các chương">
           <button type="button" data-go="hero" class="is-active"><span>Mở đầu</span></button>
+          <button type="button" data-go="cut"><span>Cắt phim</span></button>
           <button type="button" data-go="wrap"><span>Thi công</span></button>
           <button type="button" data-go="impact"><span>Va đập</span></button>
           <button type="button" data-go="heal"><span>Tự phục hồi</span></button>
           <button type="button" data-go="layers"><span>Cấu tạo</span></button>
+          <button type="button" data-go="burst"><span>Toàn xe</span></button>
           <button type="button" data-go="compare"><span>Hiệu quả</span></button>
           <button type="button" data-go="outro"><span>Đặt lịch</span></button>
         </nav>

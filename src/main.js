@@ -198,7 +198,7 @@ const story = initStory({
   cursor,
 });
 story.lenis = lenis;
-if (import.meta.env.DEV) window.__lenis = lenis;
+if (import.meta.env.DEV) { window.__lenis = lenis; window.__gsap = gsap; }
 
 // ---------- self-recording (?rec): capture this tab while the demo plays, then download the video ----------
 function pickRecorderType() {

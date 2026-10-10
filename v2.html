@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Storedetailing — Phim PPF từ máy cắt đến thân xe</title>
+  <meta name="description" content="Storedetailing thi công phim bảo vệ sơn PPF: cắt chính xác theo khuôn từng dòng xe, cấu tạo 5 lớp, bảo vệ mọi chi tiết sơn và tự phục hồi vết xước nhỏ." />
+  <meta name="theme-color" content="#060708" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <div class="loader" id="loader" aria-hidden="true">
+    <div class="loader__brand">STORE<span>DETAILING</span></div>
+    <div class="loader__bar"><i id="loaderBar"></i></div>
+    <div class="loader__pct mono"><span id="loaderPct">0</span>%</div>
+  </div>
+
+  <div class="cursor" aria-hidden="true">
+    <div class="cursor__ring"><span class="cursor__label"></span></div>
+    <div class="cursor__dot"></div>
+  </div>
+
+  <div class="scroll-progress" aria-hidden="true"><i></i></div>
+
+  <header class="nav" id="nav">
+    <a href="#top" class="nav__brand" aria-label="Storedetailing — về đầu trang">STORE<span>DETAILING</span></a>
+    <nav class="nav__links" aria-label="Điều hướng chính">
+      <a href="#top" data-chapter="cut">Cắt phim</a>
+      <a href="#top" data-chapter="layers">Cấu tạo</a>
+      <a href="#top" data-chapter="heal">Tự phục hồi</a>
+      <a href="#goi">Gói dịch vụ</a>
+    </nav>
+    <a href="#lien-he" class="btn btn--accent btn--sm" data-magnetic>Đặt lịch</a>
+  </header>
+
+  <main>
+    <!-- ============ THE FILM: scroll plays it, frame by frame ============ -->
+    <section class="film" id="top">
+      <div class="film__sticky">
+        <canvas class="film__canvas" id="filmCanvas" aria-label="Phim 3D: máy cắt ZAPPA M-1600 cắt miếng phim nắp capo, miếng phim bay lên xe, tách 5 lớp, bóc màng lót và dán; phim trên toàn xe bung ra rồi trở về; thử cào xước và tự phục hồi"></canvas>
+        <div class="film__vignette" aria-hidden="true"></div>
+
+        <!-- opening -->
+        <div class="intro" id="intro">
+          <p class="eyebrow">Phim bảo vệ sơn PPF</p>
+          <h1 class="intro__title">
+            <span class="line"><span>Từ máy cắt</span></span>
+            <span class="line"><span><em>đến thân xe.</em></span></span>
+          </h1>
+          <p class="intro__sub">Cuộn để xem miếng phim được cắt, tách lớp và dán lên chiếc xe của bạn.</p>
+        </div>
+
+        <!-- captions (frame windows of the Blender film) -->
+        <div class="cap" data-in="8" data-out="70"><span class="cap__n mono">01</span><p class="cap__t">Máy cắt phim PPF <b>ZAPPA M-1600</b></p><p class="cap__s">Khổ phim 1,52 m</p></div>
+        <div class="cap" data-in="120" data-out="250"><span class="cap__n mono">02</span><p class="cap__t">Cắt chính xác theo khuôn nắp capo</p><p class="cap__s">Dao cắt chạy đúng đường mép của từng dòng xe</p></div>
+        <div class="cap" data-in="318" data-out="392"><span class="cap__n mono">03</span><p class="cap__t">Một miếng phim hoàn chỉnh</p><p class="cap__s">Tách khỏi khổ phim và đưa lên nắp capo</p></div>
+        <div class="cap cap--top" data-in="426" data-out="524"><span class="cap__n mono">04</span><p class="cap__t cap__t--gold">Cấu tạo 5 lớp phim PPF</p></div>
+        <div class="cap" data-in="534" data-out="606"><span class="cap__n mono">05</span><p class="cap__t">Bóc màng lót · dán lên nắp capo</p></div>
+        <div class="cap cap--center" data-in="668" data-out="756"><p class="cap__t cap__t--xl">PPF bảo vệ mọi chi tiết sơn</p><p class="cap__t cap__t--xl cap__t--gold">trên chiếc xe của bạn</p></div>
+        <div class="cap" data-in="866" data-out="1000"><span class="cap__n mono">07</span><p class="cap__t">Thử cào xước</p></div>
+        <div class="cap" data-in="1036" data-out="1112"><span class="cap__n mono">08</span><p class="cap__t">Vết xước tự phục hồi khi gặp nhiệt</p><p class="cap__s">Lớp phủ trên cùng tự liền lại, không cần đánh bóng</p></div>
+        <p class="film__tag" data-in="866" data-out="1112">Hình ảnh mô phỏng</p>
+
+        <!-- the five layers, pinned beside the hood -->
+        <div class="layer-tags" id="layerTags" aria-hidden="true"></div>
+
+        <!-- end card -->
+        <div class="endcard" data-in="1240" data-out="99999">
+          <p class="endcard__brand">STORE<span>DETAILING</span></p>
+          <p class="endcard__line">Dán phim bảo vệ sơn PPF</p>
+          <p class="endcard__url mono">storedetailing.vn</p>
+        </div>
+        <div class="endcta" data-in="1240" data-out="99999">
+          <a href="#lien-he" class="btn btn--accent" data-magnetic>Đặt lịch tư vấn</a>
+          <a href="#goi" class="btn btn--ghost" data-magnetic>Xem gói dịch vụ</a>
+        </div>
+
+        <!-- player bar -->
+        <div class="hud" id="hud">
+          <button type="button" class="hud__play" id="playBtn" aria-pressed="false"><i aria-hidden="true"></i><span>Xem tự động</span></button>
+          <div class="hud__track">
+            <ol class="hud__chapters" id="hudChapters" aria-label="Các cảnh"></ol>
+            <div class="hud__bar"><i id="hudFill"></i></div>
+          </div>
+          <span class="hud__time mono" id="hudTime">00:00</span>
+        </div>
+        <div class="film__scroll" id="scrollHint" aria-hidden="true">Cuộn để xem<i></i></div>
+      </div>
+    </section>
+
+    <!-- ============ PACKAGES ============ -->
+    <section class="packages" id="goi">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow" data-reveal>Gói dịch vụ</p>
+          <h2 class="section-title" data-split>Lựa chọn mức bảo vệ.</h2>
+          <p class="lead" data-reveal>Mỗi gói được tư vấn theo dòng xe và thói quen sử dụng. Báo giá chi tiết sau khi kiểm tra tình trạng xe.</p>
+        </div>
+        <div class="packages__grid">
+          <article class="pkg" data-tilt>
+            <div class="pkg__glare"></div>
+            <p class="pkg__tier">Front Kit</p>
+            <h3>Bảo vệ vùng va chạm</h3>
+            <p class="pkg__desc">Bảo vệ các khu vực chịu va đập và trầy xước nhiều nhất khi vận hành.</p>
+            <ul>
+              <li>Cản trước, nắp capo, tai xe</li>
+              <li>Gương chiếu hậu</li>
+              <li>Hõm tay nắm cửa</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--ghost btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+          <article class="pkg pkg--featured" data-tilt>
+            <div class="pkg__glare"></div>
+            <span class="pkg__badge">Đề xuất</span>
+            <p class="pkg__tier">Full Body · Gloss</p>
+            <h3>Toàn thân, bề mặt bóng</h3>
+            <p class="pkg__desc">Phủ toàn bộ bề mặt sơn, giữ nguyên màu sơn zin với độ bóng sâu.</p>
+            <ul>
+              <li>Toàn bộ các mảng thân xe</li>
+              <li>Cắt phim theo khuôn từng dòng xe</li>
+              <li>Gói mép kín các cạnh</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--accent btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+          <article class="pkg" data-tilt>
+            <div class="pkg__glare"></div>
+            <p class="pkg__tier">Full Body · Satin</p>
+            <h3>Toàn thân, bề mặt nhám</h3>
+            <p class="pkg__desc">Chuyển bề mặt bóng sang hiệu ứng satin sang trọng, vẫn bảo vệ toàn diện.</p>
+            <ul>
+              <li>Hiệu ứng satin đồng đều</li>
+              <li>Tháo gỡ được, trả lại sơn bóng zin</li>
+              <li>Hạn chế lộ vết xoáy</li>
+            </ul>
+            <a href="#lien-he" class="btn btn--ghost btn--block" data-magnetic>Nhận báo giá</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PROCESS ============ -->
+    <section class="process" id="quy-trinh">
+      <div class="process__sticky">
+        <div class="process__head container">
+          <p class="eyebrow">Quy trình</p>
+          <h2 class="section-title">Quy trình thi công 5 bước.</h2>
+        </div>
+        <div class="process__track" id="processTrack">
+          <article class="step"><span class="step__n mono">01</span><h3>Kiểm tra &amp; tư vấn</h3><p>Đo độ dày sơn, đánh giá tình trạng bề mặt và tư vấn dòng phim, phạm vi phủ phù hợp.</p></article>
+          <article class="step"><span class="step__n mono">02</span><h3>Làm sạch chuyên sâu</h3><p>Rửa nhiều bước, tẩy bụi sắt, nhựa đường và tạp chất bám trên bề mặt sơn.</p></article>
+          <article class="step"><span class="step__n mono">03</span><h3>Hiệu chỉnh bề mặt sơn</h3><p>Đánh bóng xử lý vết xoáy, xước nhẹ để bề mặt đạt trạng thái tốt nhất trước khi phủ phim.</p></article>
+          <article class="step"><span class="step__n mono">04</span><h3>Cắt phim &amp; thi công</h3><p>Cắt phim theo khuôn từng dòng xe trên máy ZAPPA M-1600, thi công từng mảng và gói mép trong khu vực sạch.</p></article>
+          <article class="step"><span class="step__n mono">05</span><h3>Hoàn thiện &amp; bàn giao</h3><p>Sấy định hình, kiểm tra dưới đèn chuyên dụng và hướng dẫn chăm sóc sau thi công.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="lien-he">
+      <div class="container">
+        <p class="eyebrow" data-reveal>Liên hệ</p>
+        <h2 class="contact__title" data-split>Giữ xe như<br/>ngày đầu nhận.</h2>
+        <p class="lead contact__lead" data-reveal>Mang xe đến để được kiểm tra bề mặt sơn và tư vấn phương án bảo vệ phù hợp.</p>
+        <div class="contact__actions" data-reveal>
+          <a href="#lien-he" class="btn btn--accent btn--lg" data-magnetic data-todo="zalo">Nhắn Zalo</a>
+          <a href="#lien-he" class="btn btn--ghost btn--lg" data-magnetic data-todo="tel">Gọi hotline</a>
+          <a href="#lien-he" class="btn btn--ghost btn--lg" data-magnetic data-todo="map">Chỉ đường</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer__row">
+      <span class="nav__brand">STORE<span>DETAILING</span></span>
+      <span class="footer__credit">Mô hình xe 3D: <a href="https://sketchfab.com/3d-models/lamborghini-urus-2018-32964087f5d24c3e90482724ddfc2fef" target="_blank" rel="noopener">“Lamborghini Urus 2018”</a> của kirikom9000, giấy phép <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, đã chỉnh sửa (lược bỏ logo, tối ưu cho web). Storedetailing không liên kết với Automobili Lamborghini.</span>
+      <span>© 2026 Storedetailing</span>
+    </div>
+  </footer>
+
+  <script type="module" src="/src/v2/main.js"></script>
+</body>
+</html>

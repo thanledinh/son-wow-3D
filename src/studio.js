@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -10,7 +11,7 @@ export const loadingManager = THREE.DefaultLoadingManager;
 const draco = new DRACOLoader().setDecoderPath(`${BASE}draco/`);
 export const gltfLoader = new GLTFLoader().setDRACOLoader(draco);
 // Bump when re-exporting models from Blender so browsers don't serve a stale GLB.
-const ASSET_VERSION = 10;
+const ASSET_VERSION = 11;
 export const asset = (p) => `${BASE}${p}?v=${ASSET_VERSION}`;
 export const hdrLoader = new HDRLoader();
 
@@ -71,6 +72,32 @@ export function makeStudioEnv(renderer, { warm = 1, cool = 1, hdr = null, hdrGai
   env.traverse((o) => o.material && o.material.dispose());
   return tex;
 }
+
+/** Reflector with a 13-tap poisson blur: a polished studio floor blurs what it reflects a little. */
+export const SOFT_REFLECTOR = {
+  ...Reflector.ReflectorShader,
+  name: 'SoftReflectorShader',
+  uniforms: { ...Reflector.ReflectorShader.uniforms, uBlur: { value: 0.0042 } },
+  fragmentShader: /* glsl */ `
+    uniform vec3 color; uniform sampler2D tDiffuse; uniform float uBlur;
+    varying vec4 vUv;
+    #include <logdepthbuf_pars_fragment>
+    float blendOverlay(float b, float l) { return b < 0.5 ? (2.0 * b * l) : (1.0 - 2.0 * (1.0 - b) * (1.0 - l)); }
+    vec3 blendOverlay(vec3 b, vec3 l) { return vec3(blendOverlay(b.r, l.r), blendOverlay(b.g, l.g), blendOverlay(b.b, l.b)); }
+    const vec2 P[12] = vec2[](
+      vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
+      vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),
+      vec2(0.507, 0.064), vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));
+    void main() {
+      #include <logdepthbuf_fragment>
+      vec2 uv = vUv.xy / vUv.w;
+      vec3 acc = texture2D(tDiffuse, uv).rgb;
+      for (int i = 0; i < 12; i++) acc += texture2D(tDiffuse, uv + P[i] * uBlur).rgb;
+      gl_FragColor = vec4(blendOverlay(acc / 13.0, color), 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`,
+};
 
 /** Soft radial gradient texture (white center → transparent edge), for shadows and fades. */
 export function radialTexture(inner = 'rgba(0,0,0,1)', outer = 'rgba(0,0,0,0)', size = 256, stop = 0) {
