@@ -1,0 +1,140 @@
+/* v3: the copy lives in the left column over a soft shade; the camera keeps the car right of it */
+.side-shade {
+  position: absolute; inset: 0; pointer-events: none; opacity: 0;
+  background: linear-gradient(90deg, rgba(6, 7, 8, 0.82) 0%, rgba(6, 7, 8, 0.5) 24%, rgba(6, 7, 8, 0) 46%);
+  transition: opacity 0.7s var(--ease);
+}
+.side-shade.is-on { opacity: 1; }
+
+.vcap {
+  position: absolute; left: var(--gutter); top: 50%;
+  width: min(32vw, 460px);
+  transform: translateY(calc(-50% + 18px));
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.55s var(--ease), transform 0.9s var(--ease);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+.vcap.is-on { opacity: 1; transform: translateY(-50%); }
+.vcap__eyebrow {
+  display: flex; align-items: center; gap: 12px; margin: 0 0 16px;
+  font: 600 12px/1 var(--font); letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-2);
+}
+.vcap__eyebrow .mono { display: inline-flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--accent); }
+.vcap__eyebrow .mono::after { content: ""; width: 28px; height: 1px; background: rgba(255, 255, 255, 0.3); }
+.vcap__title { margin: 0; font-size: clamp(28px, 2.7vw, 46px); line-height: 1.06; letter-spacing: -0.035em; font-weight: 700; }
+.vcap__title em { font-style: normal; color: var(--accent); }
+.vcap--xl .vcap__title { font-size: clamp(32px, 3.2vw, 56px); }
+.vcap__sub { margin: 16px 0 0; max-width: 34ch; font-size: clamp(14.5px, 1.05vw, 16px); line-height: 1.6; color: var(--ink-2); }
+
+/* tall frames (phones held upright, narrow windows): the copy sits on top, the picture stays centred under it.
+   The 23/20 split matches WIDE in stage.js. */
+@media (max-aspect-ratio: 23/20) {
+  .side-shade { background: linear-gradient(180deg, rgba(6, 7, 8, 0.85) 0%, rgba(6, 7, 8, 0.45) 34%, rgba(6, 7, 8, 0) 54%); }
+  .vcap { top: 84px; left: var(--gutter); right: var(--gutter); width: auto; transform: translateY(14px); }
+  .vcap.is-on { transform: none; }
+  .vcap__eyebrow { margin-bottom: 10px; font-size: 11px; }
+  .vcap__title { font-size: clamp(24px, 7vw, 32px); }
+  .vcap__title br { display: none; }
+  .vcap__sub { margin-top: 10px; font-size: 13.5px; }
+}
+
+/* 5 layers: the car steps left, a square of film separates in the middle, its sheet sits in the right column */
+.sample { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease); }
+.sample.is-on { opacity: 1; }
+.sample__head, .sample__detail { position: absolute; right: var(--gutter); width: min(24vw, 330px); }
+.sample__head { bottom: calc(50% + 6px); }
+.sample__title { margin: 0; font-size: clamp(26px, 2.3vw, 40px); line-height: 1.06; letter-spacing: -0.035em; font-weight: 700; }
+.sample__detail {
+  top: calc(50% + 6px);
+  padding: 16px 18px 18px; border: 1px solid var(--line); border-radius: 16px;
+  background: rgba(10, 12, 14, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.sample__num { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
+.sample__num span { font-size: 20px; color: var(--accent); }
+.sample__name { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: -0.02em; }
+.sample__en { margin: 3px 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
+.sample__desc { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+.sample__props { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sample__props li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink); }
+.sample__props li::before { content: ""; width: 12px; height: 1px; background: var(--accent); flex: none; }
+.sample__detail.is-swap > * { animation: sample-in 0.5s var(--ease) both; }
+@keyframes sample-in { from { opacity: 0; transform: translateY(6px); } }
+.sample__hint { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+.sample__tags { position: absolute; inset: 0; }
+.stag {
+  position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; padding: 6px 4px;
+  border: 0; background: none; color: var(--muted); cursor: pointer; pointer-events: auto;
+  transition: opacity 0.4s, color 0.3s; will-change: transform;
+}
+.stag .mono { font-size: 12px; }
+.stag b { display: none; }
+.stag i { order: 2; width: 26px; height: 1px; background: rgba(255, 255, 255, 0.3); transition: background 0.3s, width 0.4s var(--ease); }
+.stag.is-active { color: var(--accent); }
+.stag.is-active i { width: 40px; background: var(--accent); }
+.sample-hover .cursor__ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-color: var(--accent); }
+/* tall frames: title on top, the square in the band below it (fitted in sample.js), its sheet above the player bar;
+   the sheet keeps one height whichever layer it shows, so the band never moves */
+@media (max-aspect-ratio: 23/20) {
+  .sample__head { top: 84px; bottom: auto; left: var(--gutter); right: var(--gutter); width: auto; }
+  .sample__title { font-size: 26px; }
+  .sample__title br { display: none; }
+  .sample__hint { margin-top: 8px; font-size: 11.5px; }
+  .sample__detail { top: auto; bottom: 86px; left: var(--gutter); right: var(--gutter); width: auto; max-width: 520px; padding: 13px 16px 14px; }
+  .sample__en { margin-bottom: 8px; padding-bottom: 8px; }
+  .sample__desc {
+    margin: 0; font-size: 13px; line-height: 1.5; height: 4.5em; overflow: hidden;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
+  }
+  .sample__props { display: none; }
+}
+@media (max-aspect-ratio: 23/20) and (min-width: 600px) {
+  .sample__detail { left: 50%; right: auto; width: calc(100% - 2 * var(--gutter)); transform: translateX(-50%); }
+}
+/* wide but short (a phone on its side): the sheet keeps to its name, in a slightly wider column */
+@media (min-aspect-ratio: 23/20) and (max-height: 620px) {
+  .sample__desc, .sample__props, .sample__hint { display: none; }
+  .sample__title { font-size: 24px; }
+  .sample__head, .sample__detail { width: min(30vw, 330px); }
+  .sample__head { bottom: calc(50% + 20px); }
+  .sample__detail { top: calc(50% - 6px); padding: 12px 14px; }
+}
+@media (min-aspect-ratio: 23/20) and (max-height: 420px) { .vcap__sub { display: none; } }
+
+/* end card: one action, and the 3D model's credit (CC BY 4.0 asks for it) */
+.endcta { flex-direction: column; align-items: center; gap: 14px; }
+.endcard__credit { margin: 0; max-width: 560px; font-size: 11px; line-height: 1.5; color: var(--muted); text-align: center; }
+.endcard__credit a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(255, 255, 255, 0.3); }
+/* a phone on its side (SHORT in stage.js): the card takes the left column, the car stands right of it */
+@media (min-aspect-ratio: 23/20) and (max-height: 500px) {
+  .endcard { left: var(--gutter); top: 50%; transform: translateY(calc(-100% + 14px)); justify-items: start; gap: 6px; text-align: left; max-width: 44vw; }
+  .endcard.is-on { transform: translateY(-100%); }
+  .endcard__brand { font-size: 28px; }
+  .endcard__line { font-size: 15px; }
+  .endcta { left: var(--gutter); bottom: auto; top: calc(50% + 16px); transform: translateY(14px); align-items: flex-start; gap: 10px; max-width: 44vw; }
+  .endcta.is-on { transform: none; }
+  .endcta .btn { --h: 44px; padding: 0 20px; font-size: 14px; }
+  .endcard__credit { text-align: left; font-size: 10px; }
+}
+
+/* pale studio (?studio=light): dark copy on a light shade; the chrome keeps its dark glass */
+body.studio-light .side-shade { background: linear-gradient(90deg, rgba(238, 239, 241, 0.88) 0%, rgba(238, 239, 241, 0.55) 26%, rgba(238, 239, 241, 0) 48%); }
+body.studio-light .vcap { text-shadow: none; }
+body.studio-light .vcap__title { color: #141518; }
+body.studio-light .vcap__sub, body.studio-light .vcap__eyebrow { color: #3a3e45; }
+body.studio-light .vcap__eyebrow .mono { color: #a8740c; }
+body.studio-light .vcap__eyebrow .mono::after { background: rgba(0, 0, 0, 0.25); }
+body.studio-light .vcap__title em { color: #b9800a; }
+body.studio-light .film__vignette {
+  background:
+    radial-gradient(120% 95% at 50% 45%, transparent 62%, rgba(120, 124, 130, 0.28) 100%),
+    linear-gradient(to top, rgba(20, 22, 26, 0.32), transparent 24%);
+}
+body.studio-light .nav { background: linear-gradient(to bottom, rgba(6, 7, 8, 0.7), rgba(6, 7, 8, 0)); }
+body.studio-light .hud { padding: 8px 14px 8px 8px; border-radius: 999px; background: rgba(6, 7, 8, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+body.studio-light .endcard { text-shadow: none; }
+body.studio-light .endcard__brand { color: #121315; }
+body.studio-light .endcard__line { color: #2c2f34; }
+body.studio-light .endcard__url { color: #a8740c; }
+body.studio-light .film__tag { color: #555a61; }
+body.studio-light .endcard__credit { color: #4a4e55; }
+body.studio-light .endcard__credit a { color: #2c2f34; text-decoration-color: rgba(0, 0, 0, 0.3); }

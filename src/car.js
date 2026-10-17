@@ -12,6 +12,10 @@ uniform vec2 uMouse; uniform float uRadius; uniform float uHover; uniform float 
 uniform float uSplit; uniform float uCompare; uniform sampler2D uWear;
 uniform vec4 uChips[${CHIP_SLOTS}];     // xyz = impact point (car space), w = how visible the mark is
 uniform float uChipHeat[${CHIP_SLOTS}]; // self-healing glow
+uniform float uGloss;                   // -1 tired, hazy clear coat · 0 factory paint · 1 under PPF: deep and mirror-wet
+uniform float uSweep;                   // 0→1 a band of light runs nose → tail as the film goes on (off outside 0..1)
+uniform float uSwirl; uniform float uSwirlHeat; uniform float uSwirlR;
+uniform vec3 uSwirlC; uniform vec3 uSwirlN; // swirl marks ring the sun's reflection at uSwirlC (car space, plane normal)
 varying vec3 vCarPos; varying vec3 vCarNrm;
 ${HEX_GLSL}
 float hash12(vec2 p) {
@@ -50,6 +54,16 @@ const WEAR_LIGHTING = /* glsl */ `
     material.specularColorBlended = mix(material.specularColorBlended, vec3(0.04), gChip);
     material.roughness = mix(material.roughness, 0.85, gChip);
   }
+  // under PPF the colour reads cleaner and more saturated (same brightness) and the clear layer is glass-smooth;
+  // a tired finish is a little hazier
+  float gp = max(uGloss, 0.0), gn = max(-uGloss, 0.0);
+  vec3 dc = material.diffuseContribution;
+  vec3 dl = vec3(dot(dc, vec3(0.2126, 0.7152, 0.0722)));
+  material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.22, 0.0), gp);
+  material.roughness = mix(material.roughness * mix(1.0, 0.55, gp), 0.5, gn);
+  #ifdef USE_CLEARCOAT
+    material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gp), 0.12, gn);
+  #endif
 }
 `;
 
@@ -122,6 +136,60 @@ const OVERLAYS = /* glsl */ `
   gl_FragColor.rgb += vec3(0.01) * wm * (1.0 - gChip);
   float splitLine = exp(-pow((vCarPos.z - uSplit) * 40.0, 2.0)) * uCompare;
   gl_FragColor.rgb += amber * splitLine * 1.6;
+
+  // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection
+  #ifdef USE_ENVMAP
+  if (uGloss > 0.001) {
+    vec3 Vg = normalize(vViewPosition);
+    float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
+    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.045 + 0.9 * fg) * uGloss;
+  }
+  #endif
+  // a tired finish: a faint milky haze over the colour
+  if (uGloss < -0.001) gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.94 + vec3(0.02), -uGloss * 0.5);
+  // the film going on: one band of light sweeps the car from nose to tail
+  if (uSweep > 0.0 && uSweep < 1.0) {
+    float bz = mix(-3.2, 3.2, uSweep);
+    float band = exp(-pow((vCarPos.z - bz) * 3.2, 2.0));
+    float fs = pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 1.5);
+    gl_FragColor.rgb += vec3(1.0, 0.97, 0.9) * band * (0.18 + 0.7 * fs) * sin(3.14159 * uSweep);
+  }
+
+  // --- swirl marks: random hairline scratches; only the ones lying across the line to the sun's reflection catch
+  // its light, so they show as fine rings around the highlight (as on a washed car in sunshine)
+  if (uSwirl > 0.001 || uSwirlHeat > 0.001) {
+    vec3 sn = normalize(uSwirlN);
+    vec3 s1 = normalize(cross(sn, abs(sn.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0)));
+    vec3 s2 = cross(sn, s1);
+    vec3 rel = vCarPos - uSwirlC;
+    vec2 sp = vec2(dot(rel, s1), dot(rel, s2));
+    float sr = length(sp);
+    float halo = exp(-pow(sr / uSwirlR, 2.0)) * smoothstep(0.0, uSwirlR * 0.12, sr);
+    if (halo > 0.002 && uSwirl > 0.001) {
+      vec2 tang = vec2(-sp.y, sp.x) / max(sr, 1e-4);
+      float lines = 0.0;
+      for (int o = 0; o < 3; o++) {
+        // a few centimetres of hairline per cell, not every cell scratched
+        float cell = o == 0 ? 0.046 : (o == 1 ? 0.031 : 0.021);
+        vec2 q = sp / cell + vec2(float(o) * 17.13, float(o) * 9.71);
+        vec2 id = floor(q);
+        vec2 f = fract(q) - 0.5;
+        float ang = hash12(id) * 6.2831853;
+        vec2 dir = vec2(cos(ang), sin(ang));
+        float off = (hash12(id + 7.7) - 0.5) * 0.6;
+        float across = abs(dot(f, vec2(-dir.y, dir.x)) - off);
+        float along = abs(dot(f, dir));
+        float px = length(fwidth(q));
+        float m = (1.0 - smoothstep(px * 0.18, px * 0.7, across)) * (1.0 - smoothstep(0.3, 0.47, along));
+        float has = step(0.28, hash12(id + 5.3));
+        lines += m * has * pow(abs(dot(dir, tang)), 16.0) * (0.45 + 0.55 * hash12(id + 3.1));
+      }
+      gl_FragColor.rgb += vec3(1.0, 0.97, 0.9) * min(lines, 1.0) * halo * uSwirl * 1.35;
+    }
+    // warm haze while the top coat heals
+    float hz = 0.5 + 0.5 * sin(sp.x * 70.0 + sp.y * 40.0 + 6.0 * hash12(floor(sp * 9.0)) + uTime * 2.4);
+    gl_FragColor.rgb += vec3(1.0, 0.5, 0.16) * uSwirlHeat * exp(-pow(sr / (uSwirlR * 1.4), 2.0)) * (0.06 + 0.1 * pow(hz, 6.0));
+  }
 }
 `;
 
@@ -139,6 +207,13 @@ export function createUniforms() {
     uChips: { value: Array.from({ length: CHIP_SLOTS }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uChipHeat: { value: new Array(CHIP_SLOTS).fill(0) },
     uWear: { value: makeWearTexture() },
+    uGloss: { value: 0 },
+    uSweep: { value: -1 },
+    uSwirl: { value: 0 },
+    uSwirlHeat: { value: 0 },
+    uSwirlR: { value: 0.35 },
+    uSwirlC: { value: new THREE.Vector3(0, 1.1, -1.7) },
+    uSwirlN: { value: new THREE.Vector3(0, 1, 0) },
   };
 }
 

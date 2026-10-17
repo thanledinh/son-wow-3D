@@ -21,27 +21,29 @@ export const hdrLoader = new HDRLoader();
  * room, which gives reflections the uneven, believable falloff a hand-built room lacks; its lower
  * half is darkened so it agrees with the black floor.
  */
-export function makeStudioEnv(renderer, { warm = 1, cool = 1, hdr = null, hdrGain = 0.55, strips = 1 } = {}) {
+export function makeStudioEnv(renderer, {
+  warm = 1, cool = 1, hdr = null, hdrGain = 0.55, strips = 1, ambient = 0x030304, floorLift = 0.08, floorColor = 0x15171a,
+} = {}) {
   const env = new THREE.Scene();
-  env.background = new THREE.Color(0x030304);
+  env.background = new THREE.Color(ambient);
   if (hdr) {
     const room = new THREE.Mesh(
       new THREE.SphereGeometry(20, 64, 32),
       new THREE.ShaderMaterial({
         side: THREE.BackSide,
         depthWrite: false,
-        uniforms: { map: { value: hdr }, uGain: { value: hdrGain } },
+        uniforms: { map: { value: hdr }, uGain: { value: hdrGain }, uFloor: { value: floorLift } },
         vertexShader: /* glsl */ `
           varying vec3 vDir;
           void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
         fragmentShader: /* glsl */ `
-          uniform sampler2D map; uniform float uGain;
+          uniform sampler2D map; uniform float uGain; uniform float uFloor;
           varying vec3 vDir;
           void main() {
             vec3 d = normalize(vDir);
             vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
             vec3 c = texture2D(map, uv).rgb * uGain;
-            c *= mix(0.08, 1.0, smoothstep(-0.2, 0.3, d.y));
+            c *= mix(uFloor, 1.0, smoothstep(-0.2, 0.3, d.y));
             gl_FragColor = vec4(c, 1.0);
           }`,
       }),
@@ -65,7 +67,7 @@ export function makeStudioEnv(renderer, { warm = 1, cool = 1, hdr = null, hdrGai
   add(0xffffff, 1.6, [0, 2.5, 9], [7, 2.2]);         // front fill
   add(0xffb347, 3.2 * warm, [-6, 1.5, -7], [4, 3]);  // warm rim
   add(0x7fe7ef, 1.8 * cool, [6, 1.2, -7], [3, 2]);   // cool rim
-  add(0x15171a, 1.0, [0, -2, 0], [30, 30]);          // floor bounce
+  add(floorColor, 1.0, [0, -2, 0], [30, 30]);        // floor bounce
   const pmrem = new THREE.PMREMGenerator(renderer);
   const tex = pmrem.fromScene(env, 0.035).texture;
   pmrem.dispose();
