@@ -11,19 +11,11 @@ import { createSample } from './sample.js';
 
 const TAU = Math.PI * 2;
 
-// Two studios to choose from (?studio=light): a dark room with a pool of light under the car, or a pale grey cove.
-const STUDIOS = {
-  dark: {
-    bg: 0x060708, centre: '#1c1f23', edge: '#060708', mirror: 0x5a5a5a, pool: 0.16, fade: 'rgb(140,140,140)',
-    env: { strips: 0.95, hdrGain: 0.7 },
-  },
-  light: {
-    bg: 0xc9ccd0, centre: '#f1f2f4', edge: '#c4c7cc', mirror: 0xc2c4c7, pool: 0, fade: 'rgb(60,60,60)',
-    env: { strips: 0.85, hdrGain: 1.05, ambient: 0x8a8d92, floorLift: 0.75, floorColor: 0x9c9fa4 },
-  },
+// the studio: a dark room with a pool of light under the car
+const STUDIO = {
+  bg: 0x060708, centre: '#1c1f23', edge: '#060708', mirror: 0x5a5a5a, pool: 0.16, fade: 'rgb(140,140,140)',
+  env: { strips: 0.95, hdrGain: 0.7 },
 };
-const STUDIO_NAME = new URLSearchParams(location.search).get('studio') === 'light' ? 'light' : 'dark';
-const STUDIO = STUDIOS[STUDIO_NAME];
 const BG = STUDIO.bg;
 const DESK = new THREE.Vector3(-3.95, 0, -2.78);   // standing desk in front of the plotter's control-panel end
 const CAR_T = new THREE.Vector3(0, 0.72, 0);
@@ -72,7 +64,6 @@ export function createStage({ canvas, sampleUi }) {
   scene.environment = makeStudioEnv(renderer, STUDIO.env);
   scene.fog = new THREE.Fog(BG, 14, 34);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 120);
-  document.body.classList.toggle('studio-light', STUDIO_NAME === 'light');
 
   const envReady = hdrLoader.loadAsync(asset('textures/studio.hdr')).then((hdr) => {
     const old = scene.environment;

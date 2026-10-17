@@ -115,26 +115,3 @@
   .endcta .btn { --h: 44px; padding: 0 20px; font-size: 14px; }
   .endcard__credit { text-align: left; font-size: 10px; }
 }
-
-/* pale studio (?studio=light): dark copy on a light shade; the chrome keeps its dark glass */
-body.studio-light .side-shade { background: linear-gradient(90deg, rgba(238, 239, 241, 0.88) 0%, rgba(238, 239, 241, 0.55) 26%, rgba(238, 239, 241, 0) 48%); }
-body.studio-light .vcap { text-shadow: none; }
-body.studio-light .vcap__title { color: #141518; }
-body.studio-light .vcap__sub, body.studio-light .vcap__eyebrow { color: #3a3e45; }
-body.studio-light .vcap__eyebrow .mono { color: #a8740c; }
-body.studio-light .vcap__eyebrow .mono::after { background: rgba(0, 0, 0, 0.25); }
-body.studio-light .vcap__title em { color: #b9800a; }
-body.studio-light .film__vignette {
-  background:
-    radial-gradient(120% 95% at 50% 45%, transparent 62%, rgba(120, 124, 130, 0.28) 100%),
-    linear-gradient(to top, rgba(20, 22, 26, 0.32), transparent 24%);
-}
-body.studio-light .nav { background: linear-gradient(to bottom, rgba(6, 7, 8, 0.7), rgba(6, 7, 8, 0)); }
-body.studio-light .hud { padding: 8px 14px 8px 8px; border-radius: 999px; background: rgba(6, 7, 8, 0.6); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-body.studio-light .endcard { text-shadow: none; }
-body.studio-light .endcard__brand { color: #121315; }
-body.studio-light .endcard__line { color: #2c2f34; }
-body.studio-light .endcard__url { color: #a8740c; }
-body.studio-light .film__tag { color: #555a61; }
-body.studio-light .endcard__credit { color: #4a4e55; }
-body.studio-light .endcard__credit a { color: #2c2f34; text-decoration-color: rgba(0, 0, 0, 0.3); }
