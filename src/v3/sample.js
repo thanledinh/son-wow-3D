@@ -114,12 +114,13 @@ export function createSample(ui, opts = {}) {
     y -= l.look.t / 2;
   });
 
-  // ---- the sheet for the picked layer + the small tags beside each layer
+  // ---- the sheet for the picked layer + a name tag beside each layer (one line on wide screens, two on tall ones)
   const tags = LAYERS.map((L, i) => {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'stag';
-    el.innerHTML = `<i></i><span class="mono">0${i + 1}</span><b>${L.vi}</b>`;
+    const words = L.vi.split(' ');
+    el.innerHTML = `<i></i><span class="mono">0${i + 1}</span><b><span>${words.slice(0, 2).join(' ')}</span> <span>${words.slice(2).join(' ')}</span></b>`;
     el.addEventListener('pointerenter', () => { hover = i; });
     el.addEventListener('pointerleave', () => { if (hover === i) hover = null; });
     el.addEventListener('click', () => { picked = picked === i ? null : i; });
@@ -188,14 +189,24 @@ export function createSample(ui, opts = {}) {
     drag = null;
   });
 
-  // ---- tall screens: the separated square is fitted into the band between the title and the sheet below it
+  // ---- the tags share one width (the widest name), so their numbers line up and each line runs to its layer
+  const sizeTags = () => {
+    ui.tags.style.setProperty('--tag-w', 'auto');
+    const w = Math.ceil(Math.max(...tags.map((t) => t.offsetWidth)));
+    ui.tags.style.setProperty('--tag-w', `${w}px`);
+    return w;
+  };
+
+  // ---- tall screens: the separated square is fitted into the band between the title and the sheet below it,
+  // right of the column its tags need
   const tmp = new THREE.Vector3();
-  const fit = { key: '', zoom: 1, y: 0 };
+  const fit = { key: '', zoom: 1, x: 0, y: 0 };
   const turn = new THREE.Matrix4();
-  const fitTall = () => {
+  const fitTall = (tagW) => {
     const head = ui.root.querySelector('.sample__head').getBoundingClientRect();
     const sheet = ui.detail.getBoundingClientRect();
     const top = head.bottom + 22, bottom = sheet.top - 22;
+    const left = head.left + tagW + 6, right = W - head.left;
     camera.zoom = 1;
     camera.clearViewOffset();
     camera.updateProjectionMatrix();
@@ -212,9 +223,11 @@ export function createSample(ui, opts = {}) {
       y1 = Math.max(y1, tmp.y);
     }
     const w = ((x1 - x0) / 2) * W, h = ((y1 - y0) / 2) * H;
-    const cy = ((1 - (y0 + y1) / 2) / 2) * H;          // its centre, px from the top
-    fit.zoom = Math.max(0.4, Math.min((bottom - top) / h, (W * 0.78) / w));
+    const cx = (((x0 + x1) / 2 + 1) / 2) * W;          // its centre, px from the left
+    const cy = ((1 - (y0 + y1) / 2) / 2) * H;          // and from the top
+    fit.zoom = Math.max(0.4, Math.min((bottom - top) / h, (right - left) / w));
     // zooming moves the centre away from the frame's middle; slide the window so it lands mid-band
+    fit.x = W / 2 + (cx - W / 2) * fit.zoom - (left + right) / 2;
     fit.y = H / 2 + (cy - H / 2) * fit.zoom - (top + bottom) / 2;
   };
 
@@ -224,7 +237,7 @@ export function createSample(ui, opts = {}) {
     H = h;
     const on = state.appear > 0.001;
     ui.root.classList.toggle('is-on', state.appear > 0.35);
-    dimMat.opacity = portrait ? 0.62 * smooth(clamp01(state.appear)) : 0;
+    dimMat.opacity = portrait ? 0.76 * smooth(clamp01(state.appear)) : 0;
     if (!on) {
       picked = null;
       hover = null;
@@ -234,17 +247,18 @@ export function createSample(ui, opts = {}) {
     }
     // the square sits right of the car on wide screens, between the title and its sheet on tall ones
     camera.aspect = W / H;
+    const k = `${W}x${H}`;
+    if (fit.key !== k) {
+      fit.key = k;
+      const tagW = sizeTags();
+      if (portrait) fitTall(tagW);
+    }
     if (portrait) {
-      const k = `${W}x${H}`;
-      if (fit.key !== k) {
-        fit.key = k;
-        fitTall();
-      }
       camera.zoom = fit.zoom;
-      camera.setViewOffset(W, H, 0, fit.y, W, H);
+      camera.setViewOffset(W, H, fit.x, fit.y, W, H);
     } else {
-      camera.zoom = 1;
-      camera.setViewOffset(W, H, -W * 0.085, 0, W, H);
+      camera.zoom = 0.92;
+      camera.setViewOffset(W, H, -W * 0.068, 0, W, H);
     }
     camera.updateProjectionMatrix();
 
@@ -276,14 +290,14 @@ export function createSample(ui, opts = {}) {
       l.u.uGlow.value = l.glow;
     });
 
-    // tags sit left of each layer, pointing at its left corner
+    // tags sit left of each layer, their line running to its left corner
     scene.updateMatrixWorld(true);
-    const show = state.explode > 0.55 && !portrait;
+    const show = state.explode > 0.55;
     layers.forEach((l, i) => {
       tmp.set(-SIZE / 2, 0, SIZE / 2).applyMatrix4(l.mesh.matrixWorld);
       tmp.project(camera);
       const x = (tmp.x * 0.5 + 0.5) * W, y = (-tmp.y * 0.5 + 0.5) * H;
-      tags[i].style.transform = `translate(calc(${x.toFixed(1)}px - 100% - 10px), calc(${y.toFixed(1)}px - 50%))`;
+      tags[i].style.transform = `translate(calc(${x.toFixed(1)}px - 100% - 3px), calc(${y.toFixed(1)}px - 50%))`;
       tags[i].style.opacity = show ? 1 : 0;
     });
   };

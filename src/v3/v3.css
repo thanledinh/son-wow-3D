@@ -60,17 +60,20 @@
 .sample__detail.is-swap > * { animation: sample-in 0.5s var(--ease) both; }
 @keyframes sample-in { from { opacity: 0; transform: translateY(6px); } }
 .sample__hint { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
-.sample__tags { position: absolute; inset: 0; }
+/* name tags: number, layer name, and a line out to the layer's corner (all tags one width, set in sample.js) */
+.sample__tags { position: absolute; inset: 0; --tag-w: auto; }
 .stag {
-  position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 8px; padding: 6px 4px;
-  border: 0; background: none; color: var(--muted); cursor: pointer; pointer-events: auto;
+  position: absolute; left: 0; top: 0; width: var(--tag-w); display: flex; align-items: center; gap: 9px; padding: 6px 0 6px 4px;
+  border: 0; background: none; color: var(--ink-2); font: inherit; text-align: left; cursor: pointer; pointer-events: auto;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.75);
   transition: opacity 0.4s, color 0.3s; will-change: transform;
 }
-.stag .mono { font-size: 12px; }
-.stag b { display: none; }
-.stag i { order: 2; width: 26px; height: 1px; background: rgba(255, 255, 255, 0.3); transition: background 0.3s, width 0.4s var(--ease); }
-.stag.is-active { color: var(--accent); }
-.stag.is-active i { width: 40px; background: var(--accent); }
+.stag .mono { font-size: 12px; color: var(--muted); transition: color 0.3s; }
+.stag b { font-size: 13.5px; font-weight: 500; line-height: 1.2; white-space: nowrap; }
+.stag i { order: 2; position: relative; flex: 1 1 18px; min-width: 18px; height: 1px; background: rgba(255, 255, 255, 0.3); transition: background 0.3s; }
+.stag i::after { content: ""; position: absolute; right: -2px; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: inherit; }
+.stag.is-active, .stag.is-active .mono { color: var(--accent); }
+.stag.is-active i { background: var(--accent); }
 .sample-hover .cursor__ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-color: var(--accent); }
 /* tall frames: title on top, the square in the band below it (fitted in sample.js), its sheet above the player bar;
    the sheet keeps one height whichever layer it shows, so the band never moves */
@@ -86,9 +89,15 @@
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
   }
   .sample__props { display: none; }
+  .stag { gap: 6px; padding: 4px 0 4px 2px; }
+  .stag .mono { font-size: 11px; }
+  .stag b { font-size: 11.5px; }
+  .stag b span { display: block; }
 }
 @media (max-aspect-ratio: 23/20) and (min-width: 600px) {
   .sample__detail { left: 50%; right: auto; width: calc(100% - 2 * var(--gutter)); transform: translateX(-50%); }
+  .stag b { font-size: 13px; }
+  .stag b span { display: inline; }
 }
 /* wide but short (a phone on its side): the sheet keeps to its name, in a slightly wider column */
 @media (min-aspect-ratio: 23/20) and (max-height: 620px) {

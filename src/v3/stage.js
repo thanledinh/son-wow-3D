@@ -35,8 +35,8 @@ export const T = {
 /**
  * v3: one continuous shot from a laptop to the car. The car turns on screen; pulling back shows it is the app on a
  * laptop beside the shop's plotter; the kit is extracted and sent; the plotter cuts every piece in one run; the
- * pieces lift off, grow and fly round the car; one full turn around it; they settle and the paint deepens; then a
- * close look at swirl marks in the sun healing away.
+ * pieces lift off, grow and fly round the car; one full turn around it; they settle under a sweep of light; then a
+ * close look at swirl marks in the sun healing away. The paint is the glossy finish from first frame to last.
  */
 export function createStage({ canvas, sampleUi }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -174,7 +174,7 @@ export function createStage({ canvas, sampleUi }) {
   // shift: how far (fraction of the width) the picture slides right to leave the left column to the copy
   // (negative: slides left, for the five-layer sample on the right)
   const cam = { tx: 0, ty: 0, tz: 0, az: 0, el: 0, dist: 1, lens: 35, hook: 1, shift: 0 };
-  const look = { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
+  const look = { gloss: 1, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
   const overrides = {};
   let plotterGroup = null;                            // dev: pin a look value (e.g. gloss) for comparisons
 
@@ -451,7 +451,8 @@ export function createStage({ canvas, sampleUi }) {
     az = turned;
     const applyShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9)), CAR_T, 34);
     const swirlShot = shot(swirlEye, swirlAt, 40);
-    const layersShot = shot(CAR_T.clone().add(v3(-9.1, 1.67, -11.8)), CAR_T, 34);
+    // nearly head-on and close, so the car stands large left of the square of film and its tags
+    const layersShot = shot(CAR_T.clone().add(v3(-3.53, 1.28, -10.87)), CAR_T, 34);
     const outro = shot(v3(-6.4, 1.15, -8.3), v3(0, 0.78, 0.2), 34);
 
     const K = kit.state, L = laptop.state, C = cable.state, SP = sample.state;
@@ -459,7 +460,7 @@ export function createStage({ canvas, sampleUi }) {
     Object.assign(K, { show: 1, cut: 0, push: 0, lift: 0, fly: 0, merge: 0, alpha: 1, edge: 0 });
     Object.assign(L, { alpha: 1, on: 1, ui: 0, sel: 0, nest: 0, send: 0, cursor: 0, cursorOn: 0, click: 0 });
     Object.assign(C, { flow: 0, pulse: 0 });
-    Object.assign(look, { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 });
+    Object.assign(look, { gloss: 1, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 });
 
     tl = gsap.timeline({ paused: true, defaults: { ease: 'power1.inOut' } });
     tl
@@ -494,8 +495,7 @@ export function createStage({ canvas, sampleUi }) {
       .to(K, { cut: 1, duration: 2.7, ease: 'none' }, T.cut + 0.5)
       .to(cam, { ...cut2, duration: 1.6 }, T.cut + 1.6)
       .to(K, { push: 1, duration: 0.45 }, T.cut + 3.2)
-      // 04 the pieces lift off, grow and fly to the car (the real car, a little tired before its film)
-      .set(look, { gloss: -0.35 }, T.lift - 0.25)
+      // 04 the pieces lift off, grow and fly to the car
       .to(K, { lift: 1, duration: 0.45 }, T.lift)
       .to(K, { edge: 1, duration: 0.4 }, T.lift)
       .to(cam, { ...pop, duration: 0.8 }, T.lift + 0.05)
@@ -506,11 +506,10 @@ export function createStage({ canvas, sampleUi }) {
       // 05 one full turn round the car with the film in the air
       .to(cam, { az: turned, duration: 3.5, ease: 'sine.inOut' }, T.orbit)
       .to(cam, { el: orbit0.el + 0.12, duration: 1.75, ease: 'sine.inOut', yoyo: true, repeat: 1 }, T.orbit)
-      // 06 the film settles; the paint deepens under it
+      // 06 the film settles; a sweep of light runs over the glossy paint
       .to(cam, { ...applyShot, duration: 1.2 }, T.apply)
       .to(K, { merge: 1, duration: 1.4 }, T.apply + 0.05)
       .fromTo(look, { sweep: 0 }, { sweep: 1, duration: 1.3, ease: 'none' }, T.apply + 0.45)
-      .to(look, { gloss: 1, duration: 1.2 }, T.apply + 0.55)
       .to(K, { edge: 0, alpha: 0, duration: 0.6 }, T.apply + 1.3)
       // 07 swirl marks in the sun, then the top coat heals them
       .to(cam, { ...swirlShot, duration: 1.15 }, T.swirl)
@@ -522,7 +521,7 @@ export function createStage({ canvas, sampleUi }) {
       .to(look, { heat: 0, duration: 0.5 }, T.swirl + 4.0)
       // 08 five layers: the car steps left, a square of film separates beside it
       .to(look, { sun: 0, duration: 0.6 }, T.layers)
-      .to(cam, { ...layersShot, shift: -0.29, duration: 1.2 }, T.layers)
+      .to(cam, { ...layersShot, shift: -0.32, duration: 1.2 }, T.layers)
       .to(SP, { appear: 1, duration: 0.7 }, T.layers + 0.6)
       .to(SP, { explode: 1, duration: 1.0 }, T.layers + 1.1)
       .fromTo(SP, { cycle: 0 }, { cycle: 5, duration: 2.2, ease: 'none' }, T.layers + 1.8)
