@@ -14,6 +14,7 @@ uniform vec4 uChips[${CHIP_SLOTS}];     // xyz = impact point (car space), w = h
 uniform float uChipHeat[${CHIP_SLOTS}]; // self-healing glow
 uniform float uGloss;                   // -1 tired, hazy clear coat · 0 factory paint · 1 under PPF: deep and mirror-wet
 uniform float uSweep;                   // 0→1 a band of light runs nose → tail as the film goes on (off outside 0..1)
+uniform float uStudio;                  // the studio softboxes seen in a glossy finish (off when the sun takes over)
 uniform float uSwirl; uniform float uSwirlHeat; uniform float uSwirlR;
 uniform vec3 uSwirlC; uniform vec3 uSwirlN; // swirl marks ring the sun's reflection at uSwirlC (car space, plane normal)
 varying vec3 vCarPos; varying vec3 vCarNrm;
@@ -143,6 +144,20 @@ const OVERLAYS = /* glsl */ `
     vec3 Vg = normalize(vViewPosition);
     float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
     gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.045 + 0.9 * fg) * uGloss;
+    // ...and in it the studio's softboxes, as a photographer sets them for a car: a lit band round the horizon cut
+    // into tall panels, and two long strips overhead running nose to tail. Only the mirror layer sees them (the
+    // paint's own light is unchanged), so every panel carries crisp highlight lines: the wet look of gloss paint.
+    vec3 rw = inverseTransformDirection(reflect(-Vg, normal), viewMatrix);
+    float ay = fwidth(rw.y) * 0.75 + 1e-4;
+    float band = smoothstep(-0.05 - ay, -0.05 + ay, rw.y) * (1.0 - smoothstep(0.24 - ay, 0.24 + ay, rw.y));
+    float line = smoothstep(0.35 - ay, 0.35 + ay, rw.y) * (1.0 - smoothstep(0.39 - ay, 0.39 + ay, rw.y));   // a thin strip above it
+    float az = atan(rw.z, rw.x) * 0.63661977;                 // quarter turns
+    float pa = fract(az + 0.5), pw = min(fwidth(az), fwidth(pa)) * 0.75 + 1e-4;   // (atan's seam, fract's wrap)
+    float panel = smoothstep(0.1 - pw, 0.1 + pw, pa) * (1.0 - smoothstep(0.86 - pw, 0.86 + pw, pa));
+    float ox = abs(rw.x) / max(rw.y, 0.05), ow = fwidth(ox) * 0.75 + 1e-4;
+    float over = (smoothstep(0.2 - ow, 0.2 + ow, ox) - smoothstep(0.29 - ow, 0.29 + ow, ox)) * smoothstep(0.5, 0.56, rw.y);
+    vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 3.6) * panel + over * 2.6);
+    gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * uGloss * uStudio;
   }
   #endif
   // a tired finish: a faint milky haze over the colour
@@ -209,6 +224,7 @@ export function createUniforms() {
     uWear: { value: makeWearTexture() },
     uGloss: { value: 0 },
     uSweep: { value: -1 },
+    uStudio: { value: 1 },
     uSwirl: { value: 0 },
     uSwirlHeat: { value: 0 },
     uSwirlR: { value: 0.35 },

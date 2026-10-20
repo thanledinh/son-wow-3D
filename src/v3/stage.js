@@ -373,6 +373,7 @@ export function createStage({ canvas, sampleUi }) {
     // car finish + swirl test
     uniforms.uGloss.value = overrides.gloss ?? look.gloss;
     uniforms.uSweep.value = look.sweep;
+    uniforms.uStudio.value = 1 - look.sun;              // in the sun, its reflection is the only highlight
     uniforms.uSwirl.value = look.swirl;
     uniforms.uSwirlHeat.value = look.heat;
     sun.intensity = 55 * look.sun;
