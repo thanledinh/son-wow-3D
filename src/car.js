@@ -12,7 +12,7 @@ uniform vec2 uMouse; uniform float uRadius; uniform float uHover; uniform float 
 uniform float uSplit; uniform float uCompare; uniform sampler2D uWear;
 uniform vec4 uChips[${CHIP_SLOTS}];     // xyz = impact point (car space), w = how visible the mark is
 uniform float uChipHeat[${CHIP_SLOTS}]; // self-healing glow
-uniform float uGloss;                   // -1 tired, hazy clear coat · 0 factory paint · 1 under PPF: deep and mirror-wet
+uniform float uGloss;                   // -1 before the film: one flat colour · 0 factory paint · 1 under PPF: deep and mirror-wet
 uniform float uSweep;                   // 0→1 a band of light runs nose → tail as the film goes on (off outside 0..1)
 uniform float uStudio;                  // the studio softboxes seen in a glossy finish (off when the sun takes over)
 uniform float uSwirl; uniform float uSwirlHeat; uniform float uSwirlR;
@@ -56,14 +56,15 @@ const WEAR_LIGHTING = /* glsl */ `
     material.roughness = mix(material.roughness, 0.85, gChip);
   }
   // under PPF the colour reads cleaner and more saturated (same brightness) and the clear layer is glass-smooth;
-  // a tired finish is a little hazier
+  // before it the paint is one flat colour: its clear coat barely reflects and the base sheen is soft
   float gp = max(uGloss, 0.0), gn = max(-uGloss, 0.0);
   vec3 dc = material.diffuseContribution;
   vec3 dl = vec3(dot(dc, vec3(0.2126, 0.7152, 0.0722)));
   material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.22, 0.0), gp);
-  material.roughness = mix(material.roughness * mix(1.0, 0.55, gp), 0.5, gn);
+  material.roughness = mix(material.roughness * mix(1.0, 0.55, gp), 0.62, gn);
   #ifdef USE_CLEARCOAT
-    material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gp), 0.12, gn);
+    material.clearcoat = mix(material.clearcoat, 0.12, gn);
+    material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gp), 0.35, gn);
   #endif
 }
 `;
@@ -160,8 +161,6 @@ const OVERLAYS = /* glsl */ `
     gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * uGloss * uStudio;
   }
   #endif
-  // a tired finish: a faint milky haze over the colour
-  if (uGloss < -0.001) gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.94 + vec3(0.02), -uGloss * 0.5);
   // the film going on: one band of light sweeps the car from nose to tail
   if (uSweep > 0.0 && uSweep < 1.0) {
     float bz = mix(-3.2, 3.2, uSweep);
