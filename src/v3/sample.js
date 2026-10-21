@@ -294,5 +294,5 @@ export function createSample(ui) {
     renderer.autoClear = auto;
   };
 
-  return { state, update, render, setTagSide };
+  return { state, update, render, setTagSide, scene, camera };
 }

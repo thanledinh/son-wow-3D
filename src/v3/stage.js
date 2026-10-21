@@ -48,13 +48,18 @@ export const T = {
  */
 export function createStage({ canvas, sampleUi }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-  const dpr = Math.min(window.devicePixelRatio, 1.75);
-  renderer.setPixelRatio(dpr);
+  // resolution (set in resize): the screen's own up to 1.75x, within a budget of pixels (a 4K monitor at 150% would
+  // otherwise draw 8 million a frame), and lowered a step at a time on a device that can't keep up (govern)
+  const DPR_MAX = 1.75, PIXELS_MAX = 4.2e6;
+  let dpr = 1, dprCap = DPR_MAX, dprFloor = 1;
   // Khronos PBR Neutral keeps the Giallo a saturated gold (ACES pushed it to a pale, flat yellow)
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;
 
   const scene = new THREE.Scene();
+  // layers: 0 everything the page camera sees (and the floor mirrors), 1 the laptop app's own viewport, 2 seen by the
+  // page camera but left out of the floor's mirror pass (the plotter: 108k triangles whose reflection hardly shows)
+  const MAIN_ONLY = 2;
   // a soft radial backdrop: brighter behind the subject, falling off to the room's edge
   scene.background = (() => {
     const c = document.createElement('canvas');
@@ -73,6 +78,7 @@ export function createStage({ canvas, sampleUi }) {
   scene.environment = makeStudioEnv(renderer, STUDIO.env);
   scene.fog = new THREE.Fog(BG, 14, 34);
   const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 120);
+  camera.layers.enable(MAIN_ONLY);
 
   const envReady = hdrLoader.loadAsync(asset('textures/studio.hdr')).then((hdr) => {
     const old = scene.environment;
@@ -83,9 +89,11 @@ export function createStage({ canvas, sampleUi }) {
 
   // ---- floor (also seen by the app's viewport camera: layer 1)
   const FLOOR_X = -1.4;
-  const mirror = new Reflector(new THREE.PlaneGeometry(44, 44), { color: STUDIO.mirror, textureWidth: 1024, textureHeight: 1024, shader: SOFT_REFLECTOR });
+  // (no MSAA: the floor blurs what it reflects anyway)
+  const mirror = new Reflector(new THREE.PlaneGeometry(44, 44), { color: STUDIO.mirror, textureWidth: 1024, textureHeight: 1024, multisample: 0, shader: SOFT_REFLECTOR });
   mirror.rotation.x = -Math.PI / 2;
   mirror.position.x = FLOOR_X;
+  mirror.getReflectionCamera(camera).layers.set(0);       // the page camera's mirror pass skips MAIN_ONLY
   const overFloor = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
   const fade = new THREE.Mesh(
     new THREE.PlaneGeometry(30, 30),
@@ -204,6 +212,7 @@ export function createStage({ canvas, sampleUi }) {
     scene.add(plotter.scene);
     plotterGroup = plotter.scene;
     plotter.scene.traverse((o) => {
+      o.layers.set(MAIN_ONLY);
       if (!o.isMesh || !o.material) return;
       o.material.envMapIntensity = 0.9;
       if (o.material.name.startsWith('Table_CutMat')) o.material = cuttingMat();
@@ -252,6 +261,7 @@ export function createStage({ canvas, sampleUi }) {
     placeSun();
     await warmUp();
     buildTimeline();
+    await preroll();
   });
 
   // the sun's reflection sits on the bonnet, where the swirl marks ring it
@@ -273,13 +283,37 @@ export function createStage({ canvas, sampleUi }) {
     uniforms.uSwirlR.value = 0.19;
   }
 
+  // Nothing may compile or upload mid-scroll (each new shader froze the page for 0.1-1.3 s the first time its scene
+  // came up). Before the loader lifts: every material compiled for each target the page draws into (the screen, tone
+  // mapped; the laptop's screen texture and the floor mirror, linear; the five-layer square's own scene), with
+  // everything visible and every layer on; then a real frame at each stage of the film puts meshes and textures on
+  // the GPU too.
   async function warmUp() {
     const hidden = [];
     scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+    const mask = camera.layers.mask;
+    camera.layers.enableAll();
     camera.updateMatrixWorld();
-    if (renderer.compileAsync) await renderer.compileAsync(scene, camera);
-    else renderer.compile(scene, camera);
+    const compile = (s, c) => (renderer.compileAsync ? renderer.compileAsync(s, c) : Promise.resolve(renderer.compile(s, c)));
+    await compile(scene, camera);
+    renderer.setRenderTarget(laptop.target);
+    await compile(scene, camera);
+    renderer.setRenderTarget(null);
+    sample.scene.environment = scene.environment;
+    await compile(sample.scene, sample.camera);
+    camera.layers.mask = mask;
     hidden.forEach((o) => { o.visible = false; });
+  }
+  async function preroll() {
+    const tick = () => new Promise((r) => setTimeout(r, 0));     // lets the loader keep moving between frames
+    for (const t of [0.05, 1.3, 2.95, 4.9, 5.9, 7.0, 7.3, 10.3, 11.6, 13.5, 17.3, 20.5, 23.9, 24.6, 28.8]) {
+      setTime(t);
+      render(t);
+      await tick();
+    }
+    setTime(0);
+    render(0);
+    gov.sum = gov.n = 0;              // (its slow first frames don't count against the device)
   }
 
   // ---- sizing
@@ -292,6 +326,10 @@ export function createStage({ canvas, sampleUi }) {
     if (!w || !h || (w === W && h === H)) return;
     W = w;
     H = h;
+    // (a big window may go a little under 1x when it is slow, but keeps about 2 million pixels)
+    dprFloor = Math.min(1, Math.max(0.75, Math.sqrt(2.1e6 / (W * H))));
+    dpr = Math.min(window.devicePixelRatio, Math.max(dprFloor, Math.min(dprCap, Math.max(1, Math.sqrt(PIXELS_MAX / (W * H))))));
+    if (renderer.getPixelRatio() !== dpr) renderer.setPixelRatio(dpr);
     renderer.setSize(W, H, false);
     camera.aspect = W / H;
     renderer.getDrawingBufferSize(uniforms.uRes.value);
@@ -472,8 +510,30 @@ export function createStage({ canvas, sampleUi }) {
     deskShadow.visible = laptop.state.alpha > 0.002;
   }
 
+  // A device that can't keep up (frames slower than ~29 fps over 60 frames) drops resolution a step at a time (two
+  // when far behind), never back up within a visit. (34 ms, not 30: a phone in low-power mode caps every page at 30 fps.)
+  const gov = { last: 0, sum: 0, n: 0 };
+  const govern = () => {
+    const now = performance.now(), dt = now - gov.last;
+    gov.last = now;
+    if (dt <= 0 || dt > 150) {                          // paused, hidden or a one-off hitch: start the count again
+      gov.sum = gov.n = 0;
+      return;
+    }
+    gov.sum += dt;
+    if (++gov.n < 60) return;
+    const avg = gov.sum / gov.n;
+    gov.sum = gov.n = 0;
+    if (avg > 34 && dpr > dprFloor + 0.01) {
+      dprCap = Math.max(dprFloor, dpr - (avg > 50 ? 0.5 : 0.25));
+      W = H = 0;
+      resize();
+    }
+  };
+
   const render = (t) => {
     if (!car || !tl) return;
+    govern();
     time = t;
     pointer.sx += (pointer.x - pointer.sx) * 0.06;
     pointer.sy += (pointer.y - pointer.sy) * 0.06;

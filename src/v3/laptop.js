@@ -78,7 +78,10 @@ export function createLaptop() {
   canvas.height = UI_H;
   const g = canvas.getContext('2d');
   const uiTex = new THREE.CanvasTexture(canvas);
-  uiTex.colorSpace = THREE.SRGBColorSpace;
+  // the UI is redrawn every frame while it animates. Chrome copies a canvas into an sRGB or a flipped texture the slow
+  // way (25-30 ms of GPU time per copy), so it goes up as plain bytes the right way up and the shader decodes and flips it
+  uiTex.colorSpace = THREE.NoColorSpace;
+  uiTex.flipY = false;
   uiTex.anisotropy = 8;
   // the app viewport is rendered only where the screen is in shot, at about the size it is seen at: the opening
   // shot fills the whole frame (on a phone, a tall slice of the 16:10 screen), later the laptop is small in frame.
@@ -131,7 +134,7 @@ export function createLaptop() {
         if (ra < ${RT_ASPECT.toFixed(4)}) q.x *= ra / ${RT_ASPECT.toFixed(4)}; else q.y *= ${RT_ASPECT.toFixed(4)} / ra;
         vec2 s = clamp((q + 0.5 - uSub.xy) / max(uSub.zw - uSub.xy, vec2(1e-4)), 0.0, 1.0) * uSubScale;
         vec3 view = neutral(texture2D(uView, clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5)).rgb);
-        vec4 ui = texture2D(uUI, vUv);
+        vec4 ui = sRGBTransferEOTF(texture2D(uUI, vec2(vUv.x, 1.0 - vUv.y)));
         vec3 col = mix(view * inside, ui.rgb, ui.a);
         gl_FragColor = vec4(col * uOn, uAlpha);
         #include <colorspace_fragment>
@@ -156,6 +159,7 @@ export function createLaptop() {
     panels.forEach((p, i) => {
       const m = new THREE.Mesh(p.mesh.geometry, new THREE.MeshBasicMaterial({
         color: 0xf4b223, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+        forceSinglePass: true,          // (added light: the order of the faces makes no difference)
       }));
       m.morphTargetInfluences = [0];
       m.position.copy(p.rest);
@@ -635,6 +639,7 @@ export function createLaptop() {
 
   return {
     group, state, screen, grid, highlights, view, update, renderView, screenFrame, addHighlights, setViewSize,
+    target: rt,
     setKit: (k) => { kit = k; dirty = true; },
     refresh: () => { dirty = true; },
     tmp,

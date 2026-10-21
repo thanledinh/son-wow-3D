@@ -157,9 +157,10 @@ export function createKit() {
     mask.minFilter = THREE.LinearFilter;
     holeU = { uHole: { value: 0 }, uMask: { value: mask } };
 
+    // (both faces in one draw: a film this clear shows no difference, and the second pass cost as much as the first)
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xf4f8fc, roughness: 0.06, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03,
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 1.3,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, envMapIntensity: 1.3,
     });
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, holeU, filmU);
@@ -265,7 +266,7 @@ export function createKit() {
   function buildPieces(glb) {
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xffffff, roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, envMapIntensity: 1.7,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, envMapIntensity: 1.7,
     });
     const u = { uAlpha: { value: 1 }, uEdge: { value: 0 } };
     mat.onBeforeCompile = (sh) => {
