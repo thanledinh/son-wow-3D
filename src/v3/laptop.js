@@ -107,17 +107,20 @@ export function createLaptop() {
       uniform sampler2D uUI; uniform sampler2D uView; uniform vec4 uRect; uniform vec4 uSub; uniform vec2 uSubScale; uniform vec2 uTexel;
       uniform float uOn; uniform float uAlpha; uniform float uExposure;
       varying vec2 vUv;
-      vec3 RRTAndODTFit(vec3 v) {
-        vec3 a = v * (v + 0.0245786) - 0.000090537;
-        vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
-        return a / b;
-      }
-      vec3 aces(vec3 c) {   // the renderer's ACES filmic, so the screen matches the page's own frames
-        const mat3 inM = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
-        const mat3 outM = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
-        c = inM * (c * uExposure / 0.6);
-        c = RRTAndODTFit(c);
-        return clamp(outM * c, 0.0, 1.0);
+      vec3 neutral(vec3 c) {   // the renderer's Khronos PBR Neutral, so the screen matches the page's own frames
+        const float startCompression = 0.8 - 0.04;
+        const float desaturation = 0.15;
+        c *= uExposure;
+        float x = min(c.r, min(c.g, c.b));
+        float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
+        c -= offset;
+        float peak = max(c.r, max(c.g, c.b));
+        if (peak < startCompression) return c;
+        float d = 1.0 - startCompression;
+        float newPeak = 1.0 - d * d / (peak + d - startCompression);
+        c *= newPeak / peak;
+        float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
+        return mix(c, vec3(newPeak), g);
       }
       void main() {
         vec2 r = (vUv - uRect.xy) / (uRect.zw - uRect.xy);
@@ -127,7 +130,7 @@ export function createLaptop() {
         vec2 q = r - 0.5;
         if (ra < ${RT_ASPECT.toFixed(4)}) q.x *= ra / ${RT_ASPECT.toFixed(4)}; else q.y *= ${RT_ASPECT.toFixed(4)} / ra;
         vec2 s = clamp((q + 0.5 - uSub.xy) / max(uSub.zw - uSub.xy, vec2(1e-4)), 0.0, 1.0) * uSubScale;
-        vec3 view = aces(texture2D(uView, clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5)).rgb);
+        vec3 view = neutral(texture2D(uView, clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5)).rgb);
         vec4 ui = texture2D(uUI, vUv);
         vec3 col = mix(view * inside, ui.rgb, ui.a);
         gl_FragColor = vec4(col * uOn, uAlpha);

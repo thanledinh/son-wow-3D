@@ -15,6 +15,7 @@ uniform float uChipHeat[${CHIP_SLOTS}]; // self-healing glow
 uniform float uGloss;                   // -1 before the film: one flat colour · 0 factory paint · 1 under PPF: deep and mirror-wet
 uniform float uSweep;                   // 0→1 a band of light runs nose → tail as the film goes on (off outside 0..1)
 uniform float uStudio;                  // the studio softboxes seen in a glossy finish (off when the sun takes over)
+uniform float uForm;                    // 0 off · 1 a photo studio's top light: lit tops, deeper sides (the paint's own light)
 uniform float uSwirl; uniform float uSwirlHeat; uniform float uSwirlR;
 uniform vec3 uSwirlC; uniform vec3 uSwirlN; // swirl marks ring the sun's reflection at uSwirlC (car space, plane normal)
 varying vec3 vCarPos; varying vec3 vCarNrm;
@@ -61,6 +62,8 @@ const WEAR_LIGHTING = /* glsl */ `
   vec3 dc = material.diffuseContribution;
   vec3 dl = vec3(dot(dc, vec3(0.2126, 0.7152, 0.0722)));
   material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.22, 0.0), gp);
+  // a big softbox overhead: bonnet and roof take the light, the flanks fall off into a deeper gold
+  material.diffuseContribution *= mix(1.0, mix(0.58, 1.12, smoothstep(-0.35, 0.85, vCarNrm.y)), uForm);
   material.roughness = mix(material.roughness * mix(1.0, 0.55, gp), 0.62, gn);
   #ifdef USE_CLEARCOAT
     material.clearcoat = mix(material.clearcoat, 0.12, gn);
@@ -224,6 +227,7 @@ export function createUniforms() {
     uGloss: { value: 0 },
     uSweep: { value: -1 },
     uStudio: { value: 1 },
+    uForm: { value: 0 },
     uSwirl: { value: 0 },
     uSwirlHeat: { value: 0 },
     uSwirlR: { value: 0.35 },

@@ -42,7 +42,8 @@ export function createStage({ canvas, sampleUi }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   const dpr = Math.min(window.devicePixelRatio, 1.75);
   renderer.setPixelRatio(dpr);
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  // Khronos PBR Neutral keeps the Giallo a saturated gold (ACES pushed it to a pale, flat yellow)
+  renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.toneMappingExposure = 1;
 
   const scene = new THREE.Scene();
@@ -161,6 +162,7 @@ export function createStage({ canvas, sampleUi }) {
   scene.add(glare);
 
   const uniforms = createUniforms();
+  uniforms.uForm.value = 1;                           // the paint lit like a studio photo: bright tops, deep gold flanks
   const kit = createKit();
   const laptop = createLaptop();
   const sample = createSample(sampleUi, { dim: BG });
@@ -185,6 +187,7 @@ export function createStage({ canvas, sampleUi }) {
     envReady,
   ]).then(async ([c, plotter]) => {
     car = c;
+    c.paint.material.color.set(0xf2bf00);           // under Neutral tone mapping: the golden Giallo of the shop's reference shot
     scene.add(c.root);
     c.root.traverse((o) => o.layers.enable(1));
     c.root.updateMatrixWorld(true);
