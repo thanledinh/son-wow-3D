@@ -21,9 +21,16 @@ const DESK = new THREE.Vector3(-3.95, 0, -2.78);   // standing desk in front of 
 const CAR_T = new THREE.Vector3(0, 0.72, 0);
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const smooth = (t) => t * t * (3 - 2 * t);
-// frame shapes: wider than WIDE keeps the copy in a left column (v3.css matches); taller than TALL is a phone held
-// upright, which gets its own lens for the close shot by the car; wide and under SHORT px high is a phone on its side,
-// whose end card moves to the left column too
+// frame shapes. The page layout reads the same media queries as v3.css (keep them in step):
+// - COPY_TOP: the copy goes on top of the picture, as on a phone (frames up to 23:20, and windows under 820 px wide
+//   that are not a phone on its side); otherwise it sits in a left column
+// - the five-layer scene: with the copy on top it stacks title, square and sheet; car, square and sheet sit side by
+//   side only on SIDE frames (3:2 and wider, 560 px high or more); between the two (4:3, 5:4, phones on their side) the
+//   square takes the left with the car dimmed behind it
+// The camera's own choices go by the canvas: taller than TALL is a phone held upright (its own lens for the close shot
+// by the car); wider than WIDE and under SHORT px high is a phone on its side, whose end card moves to the left column.
+const COPY_TOP = '(max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px)';
+const SIDE = '(min-aspect-ratio: 3/2) and (min-height: 560px)';
 const WIDE = 1.15, TALL = 0.9, SHORT = 500;
 
 // timeline seconds where each part starts (the page maps scroll onto this)
@@ -278,6 +285,9 @@ export function createStage({ canvas, sampleUi }) {
   // ---- sizing
   let W = 1, H = 1;
   const frameKind = () => (W / H < TALL ? 'tall' : W / H > WIDE && H < SHORT ? 'short' : 'wide');
+  const mqCopyTop = matchMedia(COPY_TOP), mqSide = matchMedia(SIDE);
+  const copyTop = () => mqCopyTop.matches;
+  const sampleLayout = () => (copyTop() ? 'stack' : mqSide.matches ? 'side' : 'mid');
   const resize = () => {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h || (w === W && h === H)) return;
@@ -365,8 +375,9 @@ export function createStage({ canvas, sampleUi }) {
     up.setFromMatrixColumn(camera.matrix, 1);
     camera.position.addScaledVector(right, pointer.sx * dist * 0.03 * k).addScaledVector(up, -pointer.sy * dist * 0.018 * k);
     camera.lookAt(target);
-    // wide screens: the subject sits right of centre while copy is up; tall ones keep it centred (copy on top)
-    const shift = W / H > WIDE ? cam.shift : 0;
+    // copy in a left column: the subject sits right of centre while it is up (further on frames squarer than 16:9,
+    // which show more of the scene round it); copy on top: the subject stays centred
+    const shift = copyTop() ? 0 : cam.shift * (1 + 1.2 * (1 - Math.min(1, W / H / (16 / 9))));
     if (Math.abs(shift) > 0.0005) camera.setViewOffset(W, H, -shift * W, 0, W, H);
     else if (camera.view) camera.clearViewOffset();
     camera.updateProjectionMatrix();
@@ -415,11 +426,11 @@ export function createStage({ canvas, sampleUi }) {
     const ndc = sc.clone().project(camera);
     if (laptop.state.on > 0.01 && ndc.z < 1 && Math.abs(ndc.x) < 1.3 && Math.abs(ndc.y) < 1.3) {
       const buf = uniforms.uRes.value;
-      laptop.renderView(renderer, scene, t, camera, buf.x, buf.y, smooth(clamp01(cam.hook)), W / H);
+      laptop.renderView(renderer, scene, t, camera, buf.x, buf.y, smooth(clamp01(cam.hook)), W / H, !copyTop());
     }
     renderer.render(scene, camera);
     // the square of film for the five layers, drawn over the frame
-    sample.update(t, W, H, W / H <= WIDE);
+    sample.update(t, W, H, sampleLayout());
     sample.render(renderer, scene.environment);
   };
 

@@ -197,16 +197,28 @@ export function createSample(ui, opts = {}) {
     return w;
   };
 
-  // ---- tall screens: the separated square is fitted into the band between the title and the sheet below it,
-  // right of the column its tags need
+  // ---- the separated square fitted into a box on the page, right of the column its tags need:
+  // 'stack' (copy on top): the band between the title and the sheet below it;
+  // 'mid' (squarer wide frames): the space left of the title and sheet's column, the car dimmed behind it
   const tmp = new THREE.Vector3();
   const fit = { key: '', zoom: 1, x: 0, y: 0 };
   const turn = new THREE.Matrix4();
-  const fitTall = (tagW) => {
+  const fitBox = (layout, tagW) => {
     const head = ui.root.querySelector('.sample__head').getBoundingClientRect();
     const sheet = ui.detail.getBoundingClientRect();
-    const top = head.bottom + 22, bottom = sheet.top - 22;
-    const left = head.left + tagW + 6, right = W - head.left;
+    let left, top, right, bottom;
+    if (layout === 'stack') {
+      top = head.bottom + 22;
+      bottom = sheet.top - 22;
+      left = head.left + tagW + 6;
+      right = W - head.left;
+    } else {
+      const gutter = W - head.right;
+      top = Math.max(84, H * 0.2);                        // the middle three fifths: on a tall 5:4 screen it stays a sample
+      bottom = Math.min(H - 96, H * 0.8);
+      left = gutter + tagW + 6;
+      right = head.left - 36;
+    }
     camera.zoom = 1;
     camera.clearViewOffset();
     camera.updateProjectionMatrix();
@@ -232,12 +244,15 @@ export function createSample(ui, opts = {}) {
   };
 
   // ---- per frame
-  const update = (time_, w, h, portrait) => {
+  // layout: 'side' (car, square and sheet side by side), 'mid' (square left of the sheet, car dimmed behind),
+  // 'stack' (title, square, sheet top to bottom, car dimmed behind)
+  const update = (time_, w, h, layout) => {
     W = w;
     H = h;
     const on = state.appear > 0.001;
+    const fitted = layout !== 'side';
     ui.root.classList.toggle('is-on', state.appear > 0.35);
-    dimMat.opacity = portrait ? 0.76 * smooth(clamp01(state.appear)) : 0;
+    dimMat.opacity = fitted ? 0.76 * smooth(clamp01(state.appear)) : 0;
     if (!on) {
       picked = null;
       hover = null;
@@ -245,15 +260,15 @@ export function createSample(ui, opts = {}) {
       document.body.classList.remove('sample-hover');
       return;
     }
-    // the square sits right of the car on wide screens, between the title and its sheet on tall ones
+    // the square sits right of the car on wide screens, in its fitted box otherwise
     camera.aspect = W / H;
-    const k = `${W}x${H}`;
+    const k = `${W}x${H}x${layout}`;
     if (fit.key !== k) {
       fit.key = k;
       const tagW = sizeTags();
-      if (portrait) fitTall(tagW);
+      if (fitted) fitBox(layout, tagW);
     }
-    if (portrait) {
+    if (fitted) {
       camera.zoom = fit.zoom;
       camera.setViewOffset(W, H, fit.x, fit.y, W, H);
     } else {

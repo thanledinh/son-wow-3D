@@ -539,9 +539,10 @@ export function createLaptop() {
   /**
    * render the app viewport into the screen texture (after update(), before the main render): only the part of it in
    * the page camera's frame, at the size it is seen at. bw, bh: the page's drawing buffer; hook: 1 in the opening shot
-   * (the screen fills the frame) → 0 once pulled back; aspect: the page's width / height.
+   * (the screen fills the frame) → 0 once pulled back; aspect: the page's width / height; copyLeft: the headline sits
+   * in a left column (else above the picture).
    */
-  const renderView = (renderer, scene, time, camera, bw, bh, hook, aspect) => {
+  const renderView = (renderer, scene, time, camera, bw, bh, hook, aspect, copyLeft) => {
     if (state.on < 0.01 || state.alpha < 0.01) return;
     if (!seenBox(camera)) return;
     const R = screenU.uRect.value;
@@ -568,11 +569,20 @@ export function createLaptop() {
     // the opening shot: on a wide page the car sits right of centre, clear of the headline. A tall page (a phone) sees
     // only a slice of the 16:10 screen, so the lens opens until the turning car fits that slice, and closes again as
     // the camera pulls back to the laptop.
+    // With the headline in a left column, a frame squarer than 16:10 (4:3, 5:4) also has to keep the car clear of it:
+    // the lens opens a little more and the car slides further right.
+    // With the headline on top of a landscape-ish frame (a narrow window), the car sits lower and a little smaller so
+    // it clears the headline; on a phone held upright there is room below it already.
     const slice = Math.min(1, aspect / RT_ASPECT);
-    const open = 1 + (Math.max(1, 0.98 / slice) - 1) * hook;
+    const squeeze = copyLeft ? 1 - slice : 0;
+    const lower = copyLeft ? 0 : clamp01((aspect - 0.9) / 0.4);
+    const room = copyLeft ? 1.12 : 1;                       // beside the headline the turning car keeps clear of it
+    const open = 1 + (Math.max(1, 0.98 / slice) * room * (1 + squeeze * 1.4) * (1 + lower * 0.2) - 1) * hook;
     view.fov = (Math.atan(Math.tan((VIEW_FOV * Math.PI) / 360) * open) * 360) / Math.PI;
-    const offX = aspect >= 1.15 ? -170 * (1 - ease(state.ui)) : 0;
-    view.setViewOffset(FULL_W, FULL_H, offX + x0 * FULL_W, (1 - y1) * FULL_H, (x1 - x0) * FULL_W, (y1 - y0) * FULL_H);
+    const away = 1 - ease(state.ui);
+    const offX = copyLeft ? -205 * (1 + squeeze * 1.8) * away : 0;
+    const offY = -150 * lower * away;
+    view.setViewOffset(FULL_W, FULL_H, offX + x0 * FULL_W, offY + (1 - y1) * FULL_H, (x1 - x0) * FULL_W, (y1 - y0) * FULL_H);
     grid.material.opacity = 0.32 * ease(state.ui);
     grid.visible = grid.material.opacity > 0.01;
     highlights.children.forEach((m) => {

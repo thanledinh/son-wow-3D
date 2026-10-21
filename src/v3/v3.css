@@ -5,6 +5,8 @@
   transition: opacity 0.7s var(--ease);
 }
 .side-shade.is-on { opacity: 1; }
+/* copy over bright paint (the bonnet in the sun) gets a deeper shade */
+.side-shade.is-strong { background: linear-gradient(90deg, rgba(6, 7, 8, 0.9) 0%, rgba(6, 7, 8, 0.72) 30%, rgba(6, 7, 8, 0) 58%); }
 
 .vcap {
   position: absolute; left: var(--gutter); top: 50%;
@@ -26,10 +28,13 @@
 .vcap--xl .vcap__title { font-size: clamp(32px, 3.2vw, 56px); }
 .vcap__sub { margin: 16px 0 0; max-width: 34ch; font-size: clamp(14.5px, 1.05vw, 16px); line-height: 1.6; color: var(--ink-2); }
 
-/* tall frames (phones held upright, narrow windows): the copy sits on top, the picture stays centred under it.
-   The 23/20 split matches WIDE in stage.js. */
-@media (max-aspect-ratio: 23/20) {
+/* copy on top (phones held upright, square-ish frames, narrow windows): the picture stays centred under it.
+   Same query as COPY_TOP in stage.js. */
+@media (max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px) {
   .side-shade { background: linear-gradient(180deg, rgba(6, 7, 8, 0.85) 0%, rgba(6, 7, 8, 0.45) 34%, rgba(6, 7, 8, 0) 54%); }
+  .side-shade.is-strong { background: linear-gradient(180deg, rgba(6, 7, 8, 0.92) 0%, rgba(6, 7, 8, 0.66) 38%, rgba(6, 7, 8, 0) 60%); }
+  .intro { top: 92px; transform: none; width: auto; right: var(--gutter); }
+  .intro.is-off { transform: translateY(-20px); }
   .vcap { top: 84px; left: var(--gutter); right: var(--gutter); width: auto; transform: translateY(14px); }
   .vcap.is-on { transform: none; }
   .vcap__eyebrow { margin-bottom: 10px; font-size: 11px; }
@@ -75,11 +80,12 @@
 .stag.is-active, .stag.is-active .mono { color: var(--accent); }
 .stag.is-active i { background: var(--accent); }
 .sample-hover .cursor__ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-color: var(--accent); }
-/* tall frames: title on top, the square in the band below it (fitted in sample.js), its sheet above the player bar;
-   the sheet keeps one height whichever layer it shows, so the band never moves */
-@media (max-aspect-ratio: 23/20) {
+/* stacked (copy on top: phones upright, narrow windows): title on top, the square in the band below it (fitted in
+   sample.js), its sheet above the player bar; the sheet keeps one height whichever layer it shows, so the band never
+   moves. Same query as COPY_TOP in stage.js. */
+@media (max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px) {
   .sample__head { top: 84px; bottom: auto; left: var(--gutter); right: var(--gutter); width: auto; }
-  .sample__title { font-size: 26px; }
+  .sample__title { font-size: clamp(26px, 2.6vw, 38px); }
   .sample__title br { display: none; }
   .sample__hint { margin-top: 8px; font-size: 11.5px; }
   .sample__detail { top: auto; bottom: 86px; left: var(--gutter); right: var(--gutter); width: auto; max-width: 520px; padding: 13px 16px 14px; }
@@ -94,13 +100,23 @@
   .stag b { font-size: 11.5px; }
   .stag b span { display: block; }
 }
-@media (max-aspect-ratio: 23/20) and (min-width: 600px) {
+@media (max-aspect-ratio: 23/20) and (min-width: 600px), (max-width: 819px) and (min-width: 600px) and (min-height: 500px) {
   .sample__detail { left: 50%; right: auto; width: calc(100% - 2 * var(--gutter)); transform: translateX(-50%); }
   .stag b { font-size: 13px; }
   .stag b span { display: inline; }
 }
-/* wide but short (a phone on its side): the sheet keeps to its name, in a slightly wider column */
-@media (min-aspect-ratio: 23/20) and (max-height: 620px) {
+/* stacked on a low frame: the sheet keeps to its name so the square keeps its room */
+@media (max-aspect-ratio: 23/20) and (max-height: 700px), (max-width: 819px) and (min-height: 500px) and (max-height: 700px) {
+  .sample__desc { display: none; }
+  .sample__en { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+}
+/* squarer wide frames (4:3, 5:4; between COPY_TOP and SIDE in stage.js): the square takes the left with its tags, the
+   car dimmed behind it, and the title and sheet keep a wider right column */
+@media (min-aspect-ratio: 23/20) and (max-aspect-ratio: 3/2) and (min-width: 820px), (min-aspect-ratio: 23/20) and (max-aspect-ratio: 3/2) and (max-height: 499px) {
+  .sample__head, .sample__detail { width: min(34vw, 360px); }
+}
+/* side by side but short (a phone on its side): the sheet keeps to its name, in a slightly wider column */
+@media (min-aspect-ratio: 3/2) and (max-height: 620px) and (min-width: 820px), (min-aspect-ratio: 3/2) and (max-height: 499px) {
   .sample__desc, .sample__props, .sample__hint { display: none; }
   .sample__title { font-size: 24px; }
   .sample__head, .sample__detail { width: min(30vw, 330px); }

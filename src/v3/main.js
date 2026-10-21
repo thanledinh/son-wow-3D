@@ -105,7 +105,9 @@ window.addEventListener('keydown', (e) => {
   } else if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End'].includes(e.key)) stopPlay();
 });
 
-const timed = [...sticky.querySelectorAll('[data-in]')].map((el) => ({ el, a: +el.dataset.in, b: +el.dataset.out, on: false }));
+const timed = [...sticky.querySelectorAll('[data-in]')].map((el) => ({
+  el, a: +el.dataset.in, b: +el.dataset.out, on: false, strong: el.dataset.shade === 'strong',
+}));
 const intro = document.querySelector('#intro');
 const sideShade = document.querySelector('#sideShade');
 const scrollHint = document.querySelector('#scrollHint');
@@ -134,14 +136,16 @@ gsap.ticker.add((time) => {
       b.classList.toggle('is-done', i < c);
     });
   }
-  let copyOn = now <= T.reveal * 0.6;
+  let copyOn = now <= T.reveal * 0.6, strong = false;
   for (const t of timed) {
     const on = now >= t.a && now < t.b;
     if (on !== t.on) { t.on = on; t.el.classList.toggle('is-on', on); }
     if (on && t.el.classList.contains('vcap')) copyOn = true;
+    if (on && t.strong) strong = true;
   }
   intro.classList.toggle('is-off', now > T.reveal * 0.6);
   sideShade.classList.toggle('is-on', copyOn);
+  sideShade.classList.toggle('is-strong', strong);
   scrollHint.classList.toggle('is-off', lenis.scroll > top + 40);
 });
 
@@ -247,7 +251,8 @@ document.querySelectorAll('[data-todo]').forEach((a) => a.addEventListener('clic
         })
         .from('.intro .eyebrow', { opacity: 0, y: 12, duration: 0.8 }, '-=0.5')
         .from('.intro__title .line > span', { yPercent: 110, duration: 1.3, stagger: 0.1, ease: 'expo.out' }, '-=0.6')
-        .from(['.intro__sub', '.hud', '.film__scroll'], { opacity: 0, duration: 1 }, '-=0.8')
+        // (clearProps: an inline opacity left behind would keep the scroll hint from ever hiding)
+        .from(['.intro__sub', '.hud', '.film__scroll'], { opacity: 0, duration: 1, clearProps: 'opacity' }, '-=0.8')
         .add(() => { if (new URLSearchParams(location.search).has('play')) startPlay(); });
     });
 }
