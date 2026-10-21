@@ -24,14 +24,14 @@ const smooth = (t) => t * t * (3 - 2 * t);
 // frame shapes. The page layout reads the same media queries as v3.css (keep them in step):
 // - COPY_TOP: the copy goes on top of the picture, as on a phone (frames up to 23:20, and windows under 820 px wide
 //   that are not a phone on its side); otherwise it sits in a left column
-// - the five-layer scene: with the copy on top it stacks title, square and sheet; car, square and sheet sit side by
-//   side only on SIDE frames (3:2 and wider, 560 px high or more); between the two (4:3, 5:4, phones on their side) the
-//   square takes the left with the car dimmed behind it
+// - the five-layer scene keeps the car big in the middle and the square of film beside it: on its right with the tags
+//   at the frame's edge, or under it (the car raised) when the copy goes on top
 // The camera's own choices go by the canvas: taller than TALL is a phone held upright (its own lens for the close shot
 // by the car); wider than WIDE and under SHORT px high is a phone on its side, whose end card moves to the left column.
 const COPY_TOP = '(max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px)';
-const SIDE = '(min-aspect-ratio: 3/2) and (min-height: 560px)';
 const WIDE = 1.15, TALL = 0.9, SHORT = 500;
+// the car's body for framing (car space ≈ world: nose at -z), a touch inside its true box
+const CAR_BOX = [-1.05, 0, -2.5, 1.05, 1.6, 2.5];
 
 // timeline seconds where each part starts (the page maps scroll onto this)
 export const T = {
@@ -173,7 +173,7 @@ export function createStage({ canvas, sampleUi }) {
   uniforms.uForm.value = 1;                           // the paint lit like a studio photo: bright tops, deep gold flanks
   const kit = createKit();
   const laptop = createLaptop();
-  const sample = createSample(sampleUi, { dim: BG });
+  const sample = createSample(sampleUi);
   laptop.group.position.copy(DESK);
   laptop.group.rotation.y = Math.PI;               // the screen faces -z, away from the car
   scene.add(laptop.group, laptop.grid, laptop.highlights);
@@ -285,9 +285,8 @@ export function createStage({ canvas, sampleUi }) {
   // ---- sizing
   let W = 1, H = 1;
   const frameKind = () => (W / H < TALL ? 'tall' : W / H > WIDE && H < SHORT ? 'short' : 'wide');
-  const mqCopyTop = matchMedia(COPY_TOP), mqSide = matchMedia(SIDE);
+  const mqCopyTop = matchMedia(COPY_TOP);
   const copyTop = () => mqCopyTop.matches;
-  const sampleLayout = () => (copyTop() ? 'stack' : mqSide.matches ? 'side' : 'mid');
   const resize = () => {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h || (w === W && h === H)) return;
@@ -348,6 +347,69 @@ export function createStage({ canvas, sampleUi }) {
   const eye = new THREE.Vector3(), target = new THREE.Vector3(), right = new THREE.Vector3(), up = new THREE.Vector3();
   let time = 0;
 
+  // ---- the five-layer scene: the car big in the middle, the square of film beside it. Where the frame is too narrow
+  // for both the car slides left (or, with the copy on top, up) just enough while the square is up.
+  const probe = new THREE.PerspectiveCamera();
+  const gutterProbe = document.createElement('div');
+  gutterProbe.style.cssText = 'position:absolute;left:0;top:0;width:var(--gutter);height:0;visibility:hidden;pointer-events:none';
+  canvas.parentElement.appendChild(gutterProbe);
+  let layersPose = null;
+  const lay = { key: '', shift: 0, lift: 0, dolly: 1, box: null };
+  /** the car's extent on the page (px) as the layers shot frames it, before any slide */
+  const carExtent = (pose) => {
+    probe.fov = fitFov(pose.lens);
+    probe.aspect = W / H;
+    probe.updateProjectionMatrix();
+    const tgt = new THREE.Vector3(pose.tx, pose.ty, pose.tz);
+    probe.position.set(Math.sin(pose.az) * Math.cos(pose.el), Math.sin(pose.el), Math.cos(pose.az) * Math.cos(pose.el)).multiplyScalar(pose.dist).add(tgt);
+    probe.lookAt(tgt);
+    probe.updateMatrixWorld();
+    const v = new THREE.Vector3(), e = { l: Infinity, r: -Infinity, t: Infinity, b: -Infinity };
+    for (let i = 0; i < 8; i++) {
+      v.set(CAR_BOX[i & 1 ? 3 : 0], CAR_BOX[i & 2 ? 4 : 1], CAR_BOX[i & 4 ? 5 : 2]).project(probe);
+      const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
+      e.l = Math.min(e.l, x);
+      e.r = Math.max(e.r, x);
+      e.t = Math.min(e.t, y);
+      e.b = Math.max(e.b, y);
+    }
+    return e;
+  };
+  const layersLayout = () => {
+    const tall = copyTop();
+    const key = `${W}x${H}x${tall}`;
+    if (!layersPose || lay.key === key) return lay;
+    lay.key = key;
+    const tagW = sample.setTagSide(tall ? 'left' : 'right');
+    const gutter = gutterProbe.offsetWidth || 24;
+    const car = carExtent(layersPose);
+    lay.dolly = 1;
+    if (!tall) {
+      // tags at the right edge, the square between them and the car. The car slides left only as far as it must, up
+      // to a tenth of the frame; past that it steps back a little instead, so it stays near the middle.
+      const right = W - gutter - tagW - 8;
+      const room = Math.max(190, W * 0.17);
+      const carRight = right - room - 28;
+      const half = (car.r - car.l) / 2, mid = (car.l + car.r) / 2;
+      let slide = Math.max(0, car.r - carRight);
+      if (slide > W * 0.1) {
+        slide = W * 0.1;
+        lay.dolly = half / Math.max(40, carRight - (mid - slide));
+      }
+      lay.shift = -slide / W;
+      lay.lift = 0;
+      const carEdge = lay.dolly > 1 ? carRight : car.r - slide;
+      lay.box = { left: carEdge + 28, right, top: Math.max(84, H * 0.2), bottom: Math.min(H - 96, H * 0.8) };
+    } else {
+      // the car rises into the upper part, the square (tags to its left) takes the space under it
+      const raise = Math.max(0, Math.min(car.b - H * 0.42, car.t - 76));
+      lay.shift = 0;
+      lay.lift = raise / H;
+      lay.box = { left: gutter + tagW + 8, right: W - gutter, top: car.b - raise + 22, bottom: H - 100 };
+    }
+    return lay;
+  };
+
   // the real car only joins the main view when the film flies to it; until then it lives on the laptop's screen
   let carInView = null;
   const showCar = (on) => {
@@ -361,9 +423,10 @@ export function createStage({ canvas, sampleUi }) {
   function apply() {
     if (!car) return;
     showCar(tl.time() >= T.lift - 0.2);
-    // camera
+    // camera (while the square of film is up, the car may step back a little to make room for it: layersLayout)
+    const L = layersLayout(), lw = smooth(clamp01(sample.state.appear));
     camera.fov = fitFov(cam.lens);
-    let dist = cam.dist;
+    let dist = cam.dist * (1 + (L.dolly - 1) * lw);
     if (cam.hook > 0.0001) dist = THREE.MathUtils.lerp(cam.dist, hookDist(camera.fov), smooth(clamp01(cam.hook)));
     target.set(cam.tx, cam.ty, cam.tz);
     eye.set(Math.sin(cam.az) * Math.cos(cam.el), Math.sin(cam.el), Math.cos(cam.az) * Math.cos(cam.el)).multiplyScalar(dist).add(target);
@@ -376,9 +439,11 @@ export function createStage({ canvas, sampleUi }) {
     camera.position.addScaledVector(right, pointer.sx * dist * 0.03 * k).addScaledVector(up, -pointer.sy * dist * 0.018 * k);
     camera.lookAt(target);
     // copy in a left column: the subject sits right of centre while it is up (further on frames squarer than 16:9,
-    // which show more of the scene round it); copy on top: the subject stays centred
-    const shift = copyTop() ? 0 : cam.shift * (1 + 1.2 * (1 - Math.min(1, W / H / (16 / 9))));
-    if (Math.abs(shift) > 0.0005) camera.setViewOffset(W, H, -shift * W, 0, W, H);
+    // which show more of the scene round it); copy on top: the subject stays centred. While the square of film is up
+    // the car makes room for it where the frame needs that.
+    const shift =(copyTop() ? 0 : cam.shift * (1 + 1.2 * (1 - Math.min(1, W / H / (16 / 9))))) + L.shift * lw;
+    const lift = L.lift * lw * H;
+    if (Math.abs(shift) > 0.0005 || lift > 0.5) camera.setViewOffset(W, H, -shift * W, lift, W, H);
     else if (camera.view) camera.clearViewOffset();
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld();
@@ -430,7 +495,7 @@ export function createStage({ canvas, sampleUi }) {
     }
     renderer.render(scene, camera);
     // the square of film for the five layers, drawn over the frame
-    sample.update(t, W, H, sampleLayout());
+    sample.update(t, W, H, layersLayout().box);
     sample.render(renderer, scene.environment);
   };
 
@@ -467,8 +532,12 @@ export function createStage({ canvas, sampleUi }) {
     az = turned;
     const applyShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9)), CAR_T, 34);
     const swirlShot = shot(swirlEye, swirlAt, 40);
-    // nearly head-on and close, so the car stands large left of the square of film and its tags
-    const layersShot = shot(CAR_T.clone().add(v3(-3.53, 1.28, -10.87)), CAR_T, 34);
+    // the car three-quarter on in the middle, as in the gloss shot and about as big (closer on a phone held upright);
+    // the square of film takes the space beside it (layersLayout). (Seen head-on, its flank caught the studio photo's
+    // brightest lamp edge-on and went white.)
+    const layersShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9).setLength(builtFor === 'tall' ? 7.5 : 9)), CAR_T, 34);
+    layersPose = layersShot;
+    lay.key = '';
     const outro = shot(v3(-6.4, 1.15, -8.3), v3(0, 0.78, 0.2), 34);
 
     const K = kit.state, L = laptop.state, C = cable.state, SP = sample.state;
@@ -536,9 +605,9 @@ export function createStage({ canvas, sampleUi }) {
       .to(look, { heat: 1, duration: 0.45 }, T.swirl + 2.4)
       .to(look, { swirl: 0, duration: 1.3 }, T.swirl + 2.75)
       .to(look, { heat: 0, duration: 0.5 }, T.swirl + 4.0)
-      // 08 five layers: the car steps left, a square of film separates beside it
+      // 08 five layers: the car in the middle, a square of film separates beside it
       .to(look, { sun: 0, duration: 0.6 }, T.layers)
-      .to(cam, { ...layersShot, shift: -0.32, duration: 1.2 }, T.layers)
+      .to(cam, { ...layersShot, shift: 0, duration: 1.2 }, T.layers)
       .to(SP, { appear: 1, duration: 0.7 }, T.layers + 0.6)
       .to(SP, { explode: 1, duration: 1.0 }, T.layers + 1.1)
       .fromTo(SP, { cycle: 0 }, { cycle: 5, duration: 2.2, ease: 'none' }, T.layers + 1.8)

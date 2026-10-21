@@ -17,13 +17,14 @@ const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const smooth = (t) => t * t * (3 - 2 * t);
 
 /**
- * A small square of PPF beside the car that separates into its five layers (drawn on top of the main frame).
- * Scroll drives state.appear (0→1), state.explode (0→1) and state.cycle (0→5: which layer is lit when the visitor
- * isn't pointing at one). Drag turns it; hovering or tapping a layer picks it and shows its sheet.
- * ui: { events (element under the pointer: the film's sticky frame), root (overlay), tags (container), detail (panel) }.
- * opts.dim: the studio's backdrop colour, laid over the car on tall screens where the square sits in front of it.
+ * A small square of PPF beside the car that separates into its five layers (drawn on top of the main frame), each
+ * layer named by a tag. Scroll drives state.appear (0→1), state.explode (0→1) and state.cycle (0→5: which layer is lit
+ * when the visitor isn't pointing at one). Drag turns it; hovering or tapping a layer (or its tag) lights it.
+ * ui: { events (element under the pointer: the film's sticky frame), root (overlay), tags (container) }.
+ * The stage places it: setTagSide() puts the tags left or right of the square (and returns their width); update()
+ * gets the page box the square must fit, its tags standing beside it.
  */
-export function createSample(ui, opts = {}) {
+export function createSample(ui) {
   const state = { appear: 0, explode: 0, cycle: 0 };
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(26, 1, 0.1, 40);
@@ -32,12 +33,6 @@ export function createSample(ui, opts = {}) {
   const key = new THREE.DirectionalLight(0xffffff, 1.4);
   key.position.set(2, 4, 3);
   scene.add(key);
-  // tall screens: the car stands right behind the square, so it dims while the square is up
-  const dimScene = new THREE.Scene();
-  const dimCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  dimCam.position.z = 0.5;
-  const dimMat = new THREE.MeshBasicMaterial({ color: opts.dim ?? 0x060708, transparent: true, opacity: 0, depthTest: false, depthWrite: false, toneMapped: false });
-  dimScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), dimMat));
 
   const pivot = new THREE.Group();          // turned by dragging
   const stack = new THREE.Group();
@@ -114,7 +109,7 @@ export function createSample(ui, opts = {}) {
     y -= l.look.t / 2;
   });
 
-  // ---- the sheet for the picked layer + a name tag beside each layer (one line on wide screens, two on tall ones)
+  // ---- a name tag beside each layer; the lit layer's tag turns gold
   const tags = LAYERS.map((L, i) => {
     const el = document.createElement('button');
     el.type = 'button';
@@ -127,25 +122,15 @@ export function createSample(ui, opts = {}) {
     ui.tags.appendChild(el);
     return el;
   });
-  const f = (k) => ui.detail.querySelector(`[data-f="${k}"]`);
-  let shown = -1;
-  const showDetail = (i) => {
-    if (i === shown) return;
-    shown = i;
-    const L = LAYERS[i];
-    f('num').textContent = `0${i + 1}`;
-    f('name').textContent = L.vi;
-    f('en').textContent = L.en;
-    f('desc').textContent = L.desc;
-    f('props').innerHTML = L.props.map((t) => `<li>${t}</li>`).join('');
+  let lit = -1;
+  const light = (i) => {
+    if (i === lit) return;
+    lit = i;
     tags.forEach((t, k) => t.classList.toggle('is-active', k === i));
-    ui.detail.classList.remove('is-swap');
-    void ui.detail.offsetWidth;
-    ui.detail.classList.add('is-swap');
   };
-  showDetail(0);                            // the sheet is filled before it first shows
+  light(0);
 
-  // ---- pointer: drag to turn, hover / tap a layer to pick it
+  // ---- pointer: drag to turn, hover / tap a layer to light it
   let W = 1, H = 1, hover = null, picked = null, drag = null;
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
@@ -189,36 +174,25 @@ export function createSample(ui, opts = {}) {
     drag = null;
   });
 
-  // ---- the tags share one width (the widest name), so their numbers line up and each line runs to its layer
-  const sizeTags = () => {
+  // ---- the tags stand left of the square (lines to each layer's left corner) or right of it (to its right corner),
+  // all one width (the widest name) so their numbers line up
+  let side = 'left', tagH = 20;
+  const setTagSide = (s) => {
+    side = s;
+    ui.tags.classList.toggle('is-right', s === 'right');
     ui.tags.style.setProperty('--tag-w', 'auto');
     const w = Math.ceil(Math.max(...tags.map((t) => t.offsetWidth)));
+    tagH = Math.max(...tags.map((t) => t.offsetHeight)) - 6;     // (less their padding: tags may touch, not overlap)
     ui.tags.style.setProperty('--tag-w', `${w}px`);
     return w;
   };
+  const tagY = new Array(LAYERS.length).fill(0);
 
-  // ---- the separated square fitted into a box on the page, right of the column its tags need:
-  // 'stack' (copy on top): the band between the title and the sheet below it;
-  // 'mid' (squarer wide frames): the space left of the title and sheet's column, the car dimmed behind it
+  // ---- the separated square fitted into a box on the page (its tags stand outside the box)
   const tmp = new THREE.Vector3();
   const fit = { key: '', zoom: 1, x: 0, y: 0 };
   const turn = new THREE.Matrix4();
-  const fitBox = (layout, tagW) => {
-    const head = ui.root.querySelector('.sample__head').getBoundingClientRect();
-    const sheet = ui.detail.getBoundingClientRect();
-    let left, top, right, bottom;
-    if (layout === 'stack') {
-      top = head.bottom + 22;
-      bottom = sheet.top - 22;
-      left = head.left + tagW + 6;
-      right = W - head.left;
-    } else {
-      const gutter = W - head.right;
-      top = Math.max(84, H * 0.2);                        // the middle three fifths: on a tall 5:4 screen it stays a sample
-      bottom = Math.min(H - 96, H * 0.8);
-      left = gutter + tagW + 6;
-      right = head.left - 36;
-    }
+  const fitInto = ({ left, top, right, bottom }) => {
     camera.zoom = 1;
     camera.clearViewOffset();
     camera.updateProjectionMatrix();
@@ -237,44 +211,32 @@ export function createSample(ui, opts = {}) {
     const w = ((x1 - x0) / 2) * W, h = ((y1 - y0) / 2) * H;
     const cx = (((x0 + x1) / 2 + 1) / 2) * W;          // its centre, px from the left
     const cy = ((1 - (y0 + y1) / 2) / 2) * H;          // and from the top
-    fit.zoom = Math.max(0.4, Math.min((bottom - top) / h, (right - left) / w));
-    // zooming moves the centre away from the frame's middle; slide the window so it lands mid-band
+    fit.zoom = Math.max(0.3, Math.min((bottom - top) / h, (right - left) / w));
+    // zooming moves the centre away from the frame's middle; slide the window so it lands mid-box
     fit.x = W / 2 + (cx - W / 2) * fit.zoom - (left + right) / 2;
     fit.y = H / 2 + (cy - H / 2) * fit.zoom - (top + bottom) / 2;
   };
 
-  // ---- per frame
-  // layout: 'side' (car, square and sheet side by side), 'mid' (square left of the sheet, car dimmed behind),
-  // 'stack' (title, square, sheet top to bottom, car dimmed behind)
-  const update = (time_, w, h, layout) => {
+  // ---- per frame (box: { left, top, right, bottom } in page px, from the stage)
+  const update = (time_, w, h, box) => {
     W = w;
     H = h;
-    const on = state.appear > 0.001;
-    const fitted = layout !== 'side';
+    const on = state.appear > 0.001 && box;
     ui.root.classList.toggle('is-on', state.appear > 0.35);
-    dimMat.opacity = fitted ? 0.76 * smooth(clamp01(state.appear)) : 0;
     if (!on) {
       picked = null;
       hover = null;
-      fit.key = '';
       document.body.classList.remove('sample-hover');
       return;
     }
-    // the square sits right of the car on wide screens, in its fitted box otherwise
     camera.aspect = W / H;
-    const k = `${W}x${H}x${layout}`;
+    const k = `${W}x${H}:${box.left | 0},${box.top | 0},${box.right | 0},${box.bottom | 0}`;
     if (fit.key !== k) {
       fit.key = k;
-      const tagW = sizeTags();
-      if (fitted) fitBox(layout, tagW);
+      fitInto(box);
     }
-    if (fitted) {
-      camera.zoom = fit.zoom;
-      camera.setViewOffset(W, H, fit.x, fit.y, W, H);
-    } else {
-      camera.zoom = 0.92;
-      camera.setViewOffset(W, H, -W * 0.068, 0, W, H);
-    }
+    camera.zoom = fit.zoom;
+    camera.setViewOffset(W, H, fit.x, fit.y, W, H);
     camera.updateProjectionMatrix();
 
     // spin back to rest when let go
@@ -290,7 +252,7 @@ export function createSample(ui, opts = {}) {
     pivot.position.y = (1 - a) * -0.25;
 
     const want = hover ?? picked ?? Math.min(4, Math.floor(state.cycle));
-    if (state.explode > 0.55) showDetail(want);
+    if (state.explode > 0.55) light(want);
     const e = smooth(clamp01(state.explode));
     time.value = time_;
     layers.forEach((l, i) => {
@@ -305,14 +267,18 @@ export function createSample(ui, opts = {}) {
       l.u.uGlow.value = l.glow;
     });
 
-    // tags sit left of each layer, their line running to its left corner
+    // each tag's line runs to its layer's corner on the tags' side; where the layers sit close (a small square, the
+    // lit layer lifted) the tags keep a tag's height apart, top to bottom
     scene.updateMatrixWorld(true);
     const show = state.explode > 0.55;
+    const right = side === 'right';
     layers.forEach((l, i) => {
-      tmp.set(-SIZE / 2, 0, SIZE / 2).applyMatrix4(l.mesh.matrixWorld);
-      tmp.project(camera);
-      const x = (tmp.x * 0.5 + 0.5) * W, y = (-tmp.y * 0.5 + 0.5) * H;
-      tags[i].style.transform = `translate(calc(${x.toFixed(1)}px - 100% - 3px), calc(${y.toFixed(1)}px - 50%))`;
+      tmp.set(right ? SIZE / 2 : -SIZE / 2, 0, right ? -SIZE / 2 : SIZE / 2).applyMatrix4(l.mesh.matrixWorld).project(camera);
+      const x = (tmp.x * 0.5 + 0.5) * W;
+      tagY[i] = Math.max((-tmp.y * 0.5 + 0.5) * H, i ? tagY[i - 1] + tagH : -Infinity);
+      tags[i].style.transform = right
+        ? `translate(${(x + 3).toFixed(1)}px, calc(${tagY[i].toFixed(1)}px - 50%))`
+        : `translate(calc(${x.toFixed(1)}px - 100% - 3px), calc(${tagY[i].toFixed(1)}px - 50%))`;
       tags[i].style.opacity = show ? 1 : 0;
     });
   };
@@ -323,11 +289,10 @@ export function createSample(ui, opts = {}) {
     scene.environment = environment;
     const auto = renderer.autoClear;
     renderer.autoClear = false;
-    if (dimMat.opacity > 0.002) renderer.render(dimScene, dimCam);
     renderer.clearDepth();
     renderer.render(scene, camera);
     renderer.autoClear = auto;
   };
 
-  return { state, update, render };
+  return { state, update, render, setTagSide };
 }

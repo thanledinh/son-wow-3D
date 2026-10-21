@@ -43,29 +43,10 @@
   .vcap__sub { margin-top: 10px; font-size: 13.5px; }
 }
 
-/* 5 layers: the car steps left, a square of film separates in the middle, its sheet sits in the right column */
+/* 5 layers: the car in the middle, a square of film beside it with a name on each layer (placed by stage.js) */
 .sample { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.6s var(--ease); }
 .sample.is-on { opacity: 1; }
-.sample__head, .sample__detail { position: absolute; right: var(--gutter); width: min(24vw, 330px); }
-.sample__head { bottom: calc(50% + 6px); }
-.sample__title { margin: 0; font-size: clamp(26px, 2.3vw, 40px); line-height: 1.06; letter-spacing: -0.035em; font-weight: 700; }
-.sample__detail {
-  top: calc(50% + 6px);
-  padding: 16px 18px 18px; border: 1px solid var(--line); border-radius: 16px;
-  background: rgba(10, 12, 14, 0.6); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-}
-.sample__num { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
-.sample__num span { font-size: 20px; color: var(--accent); }
-.sample__name { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: -0.02em; }
-.sample__en { margin: 3px 0 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
-.sample__desc { margin: 0 0 12px; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
-.sample__props { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.sample__props li { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink); }
-.sample__props li::before { content: ""; width: 12px; height: 1px; background: var(--accent); flex: none; }
-.sample__detail.is-swap > * { animation: sample-in 0.5s var(--ease) both; }
-@keyframes sample-in { from { opacity: 0; transform: translateY(6px); } }
-.sample__hint { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
-/* name tags: number, layer name, and a line out to the layer's corner (all tags one width, set in sample.js) */
+/* name tags: number, layer name, and a line out to the layer's corner (left-side tags share one width, set in sample.js) */
 .sample__tags { position: absolute; inset: 0; --tag-w: auto; }
 .stag {
   position: absolute; left: 0; top: 0; width: var(--tag-w); display: flex; align-items: center; gap: 9px; padding: 6px 0 6px 4px;
@@ -79,49 +60,24 @@
 .stag i::after { content: ""; position: absolute; right: -2px; top: -2px; width: 5px; height: 5px; border-radius: 50%; background: inherit; }
 .stag.is-active, .stag.is-active .mono { color: var(--accent); }
 .stag.is-active i { background: var(--accent); }
+/* tags right of the square, at the frame's edge: a short line out to the layer's right corner, then number and name
+   (on two lines) */
+.sample__tags.is-right .stag { width: auto; padding: 6px 4px 6px 0; }
+.sample__tags.is-right .stag i { order: -1; flex: 0 0 22px; }
+.sample__tags.is-right .stag i::after { right: auto; left: -2px; }
+.sample__tags.is-right .stag b span { display: block; }
 .sample-hover .cursor__ring { width: 64px; height: 64px; margin: -32px 0 0 -32px; border-color: var(--accent); }
-/* stacked (copy on top: phones upright, narrow windows): title on top, the square in the band below it (fitted in
-   sample.js), its sheet above the player bar; the sheet keeps one height whichever layer it shows, so the band never
-   moves. Same query as COPY_TOP in stage.js. */
+/* copy on top (phones upright, narrow windows): the tags stand left of the square, under the car; names on two lines
+   (windows wide enough keep them on one). Same query as COPY_TOP in stage.js. */
 @media (max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px) {
-  .sample__head { top: 84px; bottom: auto; left: var(--gutter); right: var(--gutter); width: auto; }
-  .sample__title { font-size: clamp(26px, 2.6vw, 38px); }
-  .sample__title br { display: none; }
-  .sample__hint { margin-top: 8px; font-size: 11.5px; }
-  .sample__detail { top: auto; bottom: 86px; left: var(--gutter); right: var(--gutter); width: auto; max-width: 520px; padding: 13px 16px 14px; }
-  .sample__en { margin-bottom: 8px; padding-bottom: 8px; }
-  .sample__desc {
-    margin: 0; font-size: 13px; line-height: 1.5; height: 4.5em; overflow: hidden;
-    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3;
-  }
-  .sample__props { display: none; }
   .stag { gap: 6px; padding: 4px 0 4px 2px; }
   .stag .mono { font-size: 11px; }
   .stag b { font-size: 11.5px; }
   .stag b span { display: block; }
 }
 @media (max-aspect-ratio: 23/20) and (min-width: 600px), (max-width: 819px) and (min-width: 600px) and (min-height: 500px) {
-  .sample__detail { left: 50%; right: auto; width: calc(100% - 2 * var(--gutter)); transform: translateX(-50%); }
   .stag b { font-size: 13px; }
   .stag b span { display: inline; }
-}
-/* stacked on a low frame: the sheet keeps to its name so the square keeps its room */
-@media (max-aspect-ratio: 23/20) and (max-height: 700px), (max-width: 819px) and (min-height: 500px) and (max-height: 700px) {
-  .sample__desc { display: none; }
-  .sample__en { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
-}
-/* squarer wide frames (4:3, 5:4; between COPY_TOP and SIDE in stage.js): the square takes the left with its tags, the
-   car dimmed behind it, and the title and sheet keep a wider right column */
-@media (min-aspect-ratio: 23/20) and (max-aspect-ratio: 3/2) and (min-width: 820px), (min-aspect-ratio: 23/20) and (max-aspect-ratio: 3/2) and (max-height: 499px) {
-  .sample__head, .sample__detail { width: min(34vw, 360px); }
-}
-/* side by side but short (a phone on its side): the sheet keeps to its name, in a slightly wider column */
-@media (min-aspect-ratio: 3/2) and (max-height: 620px) and (min-width: 820px), (min-aspect-ratio: 3/2) and (max-height: 499px) {
-  .sample__desc, .sample__props, .sample__hint { display: none; }
-  .sample__title { font-size: 24px; }
-  .sample__head, .sample__detail { width: min(30vw, 330px); }
-  .sample__head { bottom: calc(50% + 20px); }
-  .sample__detail { top: calc(50% - 6px); padding: 12px 14px; }
 }
 @media (min-aspect-ratio: 23/20) and (max-height: 420px) { .vcap__sub { display: none; } }
 

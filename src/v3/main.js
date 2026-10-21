@@ -40,7 +40,6 @@ const stage = createStage({
     events: sticky,
     root: document.querySelector('#sample'),
     tags: document.querySelector('#sampleTags'),
-    detail: document.querySelector('#sampleDetail'),
   },
 });
 const D = T.end;
