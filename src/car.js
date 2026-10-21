@@ -142,26 +142,32 @@ const OVERLAYS = /* glsl */ `
   float splitLine = exp(-pow((vCarPos.z - uSplit) * 40.0, 2.0)) * uCompare;
   gl_FragColor.rgb += amber * splitLine * 1.6;
 
-  // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection
   #ifdef USE_ENVMAP
-  if (uGloss > 0.001) {
+  float gpo = max(uGloss, 0.0);
+  // the studio's softboxes in the clear coat, as a photographer sets them for a car (uForm: the v3 look). Factory
+  // paint is glossy but calm: the boxes show as soft, broad glows. Under the film they sharpen into crisp lines and
+  // brighten: the wet look.
+  float boxW = uForm * uStudio * (uGloss >= 0.0 ? mix(0.4, 1.0, gpo) : 0.4 * max(0.0, 1.0 + uGloss));
+  float soft = mix(0.12, 0.0, gpo);                         // how blurred the reflected boxes are (direction units)
+  if (gpo > 0.001 || boxW > 0.001) {
     vec3 Vg = normalize(vViewPosition);
     float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
-    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.045 + 0.9 * fg) * uGloss;
-    // ...and in it the studio's softboxes, as a photographer sets them for a car: a lit band round the horizon cut
-    // into tall panels, and two long strips overhead running nose to tail. Only the mirror layer sees them (the
-    // paint's own light is unchanged), so every panel carries crisp highlight lines: the wet look of gloss paint.
+    // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection
+    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.045 + 0.9 * fg) * gpo;
+    // the softboxes: a lit band round the horizon cut into tall panels, a thin strip above it (crisp, film only), and
+    // two long strips overhead running nose to tail. Only the mirror layer sees them; the paint's own light is unchanged.
     vec3 rw = inverseTransformDirection(reflect(-Vg, normal), viewMatrix);
-    float ay = fwidth(rw.y) * 0.75 + 1e-4;
+    float ay = fwidth(rw.y) * 0.75 + 1e-4 + soft;
     float band = smoothstep(-0.05 - ay, -0.05 + ay, rw.y) * (1.0 - smoothstep(0.24 - ay, 0.24 + ay, rw.y));
-    float line = smoothstep(0.35 - ay, 0.35 + ay, rw.y) * (1.0 - smoothstep(0.39 - ay, 0.39 + ay, rw.y));   // a thin strip above it
+    float ly = fwidth(rw.y) * 0.75 + 1e-4;
+    float line = smoothstep(0.35 - ly, 0.35 + ly, rw.y) * (1.0 - smoothstep(0.39 - ly, 0.39 + ly, rw.y)) * gpo;
     float az = atan(rw.z, rw.x) * 0.63661977;                 // quarter turns
-    float pa = fract(az + 0.5), pw = min(fwidth(az), fwidth(pa)) * 0.75 + 1e-4;   // (atan's seam, fract's wrap)
+    float pa = fract(az + 0.5), pw = min(fwidth(az), fwidth(pa)) * 0.75 + 1e-4 + soft * 0.7;   // (atan's seam, fract's wrap)
     float panel = smoothstep(0.1 - pw, 0.1 + pw, pa) * (1.0 - smoothstep(0.86 - pw, 0.86 + pw, pa));
-    float ox = abs(rw.x) / max(rw.y, 0.05), ow = fwidth(ox) * 0.75 + 1e-4;
+    float ox = abs(rw.x) / max(rw.y, 0.05), ow = fwidth(ox) * 0.75 + 1e-4 + soft * 0.9;
     float over = (smoothstep(0.2 - ow, 0.2 + ow, ox) - smoothstep(0.29 - ow, 0.29 + ow, ox)) * smoothstep(0.5, 0.56, rw.y);
     vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 3.6) * panel + over * 2.6);
-    gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * uGloss * uStudio;
+    gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * boxW;
   }
   #endif
   // the film going on: one band of light sweeps the car from nose to tail

@@ -36,7 +36,8 @@ export const T = {
  * v3: one continuous shot from a laptop to the car. The car turns on screen; pulling back shows it is the app on a
  * laptop beside the shop's plotter; the kit is extracted and sent; the plotter cuts every piece in one run; the
  * pieces lift off, grow and fly round the car; one full turn around it; they settle under a sweep of light; then a
- * close look at swirl marks in the sun healing away. The paint is one flat colour until the film goes on, then glossy.
+ * close look at swirl marks in the sun healing away. The paint is glossy factory paint until the film goes on, then
+ * deeper and glossier still.
  */
 export function createStage({ canvas, sampleUi }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -176,7 +177,7 @@ export function createStage({ canvas, sampleUi }) {
   // shift: how far (fraction of the width) the picture slides right to leave the left column to the copy
   // (negative: slides left, for the five-layer sample on the right)
   const cam = { tx: 0, ty: 0, tz: 0, az: 0, el: 0, dist: 1, lens: 35, hook: 1, shift: 0 };
-  const look = { gloss: -1, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
+  const look = { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
   const overrides = {};
   let plotterGroup = null;                            // dev: pin a look value (e.g. gloss) for comparisons
 
@@ -464,7 +465,7 @@ export function createStage({ canvas, sampleUi }) {
     Object.assign(K, { show: 1, cut: 0, push: 0, lift: 0, fly: 0, merge: 0, alpha: 1, edge: 0 });
     Object.assign(L, { alpha: 1, on: 1, ui: 0, sel: 0, nest: 0, send: 0, cursor: 0, cursorOn: 0, click: 0 });
     Object.assign(C, { flow: 0, pulse: 0 });
-    Object.assign(look, { gloss: -1, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 });
+    Object.assign(look, { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 });
 
     tl = gsap.timeline({ paused: true, defaults: { ease: 'power1.inOut' } });
     tl
@@ -510,7 +511,7 @@ export function createStage({ canvas, sampleUi }) {
       // 05 one full turn round the car with the film in the air
       .to(cam, { az: turned, duration: 3.5, ease: 'sine.inOut' }, T.orbit)
       .to(cam, { el: orbit0.el + 0.12, duration: 1.75, ease: 'sine.inOut', yoyo: true, repeat: 1 }, T.orbit)
-      // 06 the film settles: under a sweep of light the flat paint turns glossy
+      // 06 the film settles: under a sweep of light the paint goes deeper and glossier
       .to(cam, { ...applyShot, duration: 1.2 }, T.apply)
       .to(K, { merge: 1, duration: 1.4 }, T.apply + 0.05)
       .fromTo(look, { sweep: 0 }, { sweep: 1, duration: 1.3, ease: 'none' }, T.apply + 0.45)
