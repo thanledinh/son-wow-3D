@@ -61,10 +61,10 @@ const WEAR_LIGHTING = /* glsl */ `
   float gp = max(uGloss, 0.0), gn = max(-uGloss, 0.0);
   vec3 dc = material.diffuseContribution;
   vec3 dl = vec3(dot(dc, vec3(0.2126, 0.7152, 0.0722)));
-  material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.22, 0.0), gp);
+  material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.1, 0.0), gp);
   // a big softbox overhead: bonnet and roof take the light, the flanks fall off into a deeper gold
   material.diffuseContribution *= mix(1.0, mix(0.58, 1.12, smoothstep(-0.35, 0.85, vCarNrm.y)), uForm);
-  material.roughness = mix(material.roughness * mix(1.0, 0.55, gp), 0.62, gn);
+  material.roughness = mix(material.roughness * mix(1.0, 0.8, gp), 0.62, gn);
   #ifdef USE_CLEARCOAT
     material.clearcoat = mix(material.clearcoat, 0.12, gn);
     material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gp), 0.35, gn);
@@ -145,15 +145,15 @@ const OVERLAYS = /* glsl */ `
   #ifdef USE_ENVMAP
   float gpo = max(uGloss, 0.0);
   // the studio's softboxes in the clear coat, as a photographer sets them for a car (uForm: the v3 look). Factory
-  // paint is glossy but calm: the boxes show as soft, broad glows. Under the film they sharpen into crisp lines and
-  // brighten: the wet look.
-  float boxW = uForm * uStudio * (uGloss >= 0.0 ? mix(0.4, 1.0, gpo) : 0.4 * max(0.0, 1.0 + uGloss));
-  float soft = mix(0.12, 0.0, gpo);                         // how blurred the reflected boxes are (direction units)
+  // paint is glossy but calm: the boxes show as soft, broad glows. Under the film they firm up and brighten a step,
+  // no more (real film deepens the paint; pushed further it reads as plastic).
+  float boxW = uForm * uStudio * (uGloss >= 0.0 ? mix(0.4, 0.62, gpo) : 0.4 * max(0.0, 1.0 + uGloss));
+  float soft = mix(0.12, 0.05, gpo);                        // how blurred the reflected boxes are (direction units)
   if (gpo > 0.001 || boxW > 0.001) {
     vec3 Vg = normalize(vViewPosition);
     float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
     // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection
-    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.045 + 0.9 * fg) * gpo;
+    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.02 + 0.4 * fg) * gpo;
     // the softboxes: a lit band round the horizon cut into tall panels, a thin strip above it (crisp, film only), and
     // two long strips overhead running nose to tail. Only the mirror layer sees them; the paint's own light is unchanged.
     vec3 rw = inverseTransformDirection(reflect(-Vg, normal), viewMatrix);
@@ -166,7 +166,7 @@ const OVERLAYS = /* glsl */ `
     float panel = smoothstep(0.1 - pw, 0.1 + pw, pa) * (1.0 - smoothstep(0.86 - pw, 0.86 + pw, pa));
     float ox = abs(rw.x) / max(rw.y, 0.05), ow = fwidth(ox) * 0.75 + 1e-4 + soft * 0.9;
     float over = (smoothstep(0.2 - ow, 0.2 + ow, ox) - smoothstep(0.29 - ow, 0.29 + ow, ox)) * smoothstep(0.5, 0.56, rw.y);
-    vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 3.6) * panel + over * 2.6);
+    vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 2.2) * panel + over * 2.6);
     gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * boxW;
   }
   #endif
