@@ -284,12 +284,30 @@
 
 .sd-cases__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 12px 24px; margin: clamp(64px, 9vh, 96px) 0 22px; }
 .sd-cases__head h3 { margin: 0; font-size: clamp(22px, 2vw, 30px); letter-spacing: -0.03em; }
-.sd-cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 0; padding: 0; list-style: none; overflow: hidden; border-radius: 22px; border: 1px solid var(--line); background: var(--line); }
-.sd-case { display: grid; gap: 10px; align-content: start; padding: 24px 26px 26px; background: var(--bg); transition: background 0.4s; }
-.sd-case:hover { background: #0d0f12; }
+/* real cars and real work, linked from the shop's own site; a touch dimmed, so the bright workshop sits in the dark page */
+.sd-cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 0; padding: 0; list-style: none; }
+.sd-case a {
+  display: grid; gap: 8px; align-content: start; height: 100%; padding: 10px 10px 20px;
+  border-radius: 22px; border: 1px solid var(--line); background: linear-gradient(170deg, #101317, #0a0b0d);
+  transition: transform 0.7s var(--ease), border-color 0.4s;
+}
+.sd-case a:hover { transform: translateY(-4px); border-color: rgba(244, 178, 35, 0.4); }
+.sd-case__media { display: block; overflow: hidden; margin-bottom: 8px; aspect-ratio: 16 / 10; border-radius: 14px; background: #15181c; }
+.sd-case__media img { object-position: 80% 50%; }      /* (keeps the shop's corner watermark out of the crop) */
+.sd-case__media img, .sd-reel img { width: 100%; height: 100%; object-fit: cover; filter: saturate(0.92) brightness(0.9); transition: transform 1.2s var(--ease), filter 0.6s; }
+.sd-case a:hover .sd-case__media img, .sd-reel li:hover img { transform: scale(1.05); filter: none; }
+.sd-case__film, .sd-case__car, .sd-case__more { padding: 0 12px; }
 .sd-case__film { font: 500 11.5px/1.3 var(--mono); letter-spacing: 0.05em; color: var(--accent); }
 .sd-case__car { font-size: 21px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
-.sd-case__scope { font-size: 14px; color: var(--muted); }
+.sd-case__more { font-size: 13px; color: var(--muted); transition: color 0.3s; }
+.sd-case a:hover .sd-case__more { color: var(--accent); }
+
+.sd-reel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 14px 0 0; padding: 0; list-style: none; }
+.sd-reel li { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 18px; background: #15181c; }
+.sd-reel span {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 36px 16px 14px;
+  background: linear-gradient(rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.86)); font-size: 13.5px; font-weight: 600; color: var(--ink);
+}
 
 /* ---------- knowing the film ---------- */
 .sd-know { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -363,7 +381,7 @@
   .sd-pillars { grid-template-columns: 1fr 1fr; }
   .sd-pillar:nth-child(3) { padding-left: 0; border-left: 0; }
   .sd-pillar:nth-child(n + 3) { margin-top: 28px; border-top: 1px solid var(--line); }
-  .sd-cases { grid-template-columns: 1fr 1fr; }
+  .sd-cases, .sd-reel { grid-template-columns: 1fr 1fr; }
   .sd-faq .sd-head { position: static; }
 }
 @media (max-width: 600px) {
@@ -371,7 +389,16 @@
   .sd-seg button { padding: 10px 8px 11px; font-size: 13.5px; }
   .sd-tabs button { padding: 12px 16px 16px; }
   .sd-tabs button::after { left: 16px; right: 16px; }
-  .sd-tiers, .sd-offer ul, .sd-cases { grid-template-columns: 1fr; }
+  .sd-tiers, .sd-offer ul { grid-template-columns: 1fr; }
+  /* the cars become a row to swipe through, the next one peeking in */
+  .sd-cases {
+    display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
+    margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter) 4px; scroll-padding: 0 var(--gutter);
+  }
+  .sd-cases::-webkit-scrollbar { display: none; }
+  .sd-case { flex: 0 0 80%; scroll-snap-align: start; }
+  .sd-reel { gap: 10px; }
+  .sd-reel span { padding: 28px 10px 10px; font-size: 12px; }
   .sd-steps { grid-template-columns: 1fr; }
   .sd-step { min-height: 0; display: grid; grid-template-columns: 56px 1fr; column-gap: 8px; }
   .sd-step__n { grid-row: span 3; margin: 0; font-size: 34px; }
