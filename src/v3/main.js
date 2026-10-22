@@ -51,7 +51,9 @@ initShop();
 let perUnit = 1, top = 0;
 const layout = () => {
   perUnit = innerHeight * 0.92;
-  section.style.height = `${Math.round(D * perUnit + innerHeight * 1.5)}px`;
+  // past the film's end the end card holds still, then the service slides up over it: the first section overlaps the
+  // film's last screen (shop.css .sd-hero), so the frame stays pinned until it is covered
+  section.style.height = `${Math.round(D * perUnit + innerHeight * 2)}px`;
   top = section.getBoundingClientRect().top + window.scrollY;
 };
 layout();
