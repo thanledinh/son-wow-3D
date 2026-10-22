@@ -153,15 +153,15 @@ export function createStage({ canvas, sampleUi }) {
   const sun = new THREE.PointLight(0xfff1dc, 0, 0, 2);
   sun.layers.enable(1);
   scene.add(sun);
-  // the sun's reflection: a hot core with a soft bloom round it
+  // the sun's reflection: a small hot core with a soft bloom round it (the user found a bigger, brighter one glaring)
   const glareTex = (() => {
     const c = document.createElement('canvas');
     c.width = c.height = 256;
     const g = c.getContext('2d');
     const grd = g.createRadialGradient(128, 128, 0, 128, 128, 128);
     grd.addColorStop(0, 'rgba(255,250,240,1)');
-    grd.addColorStop(0.08, 'rgba(255,246,228,0.95)');
-    grd.addColorStop(0.22, 'rgba(255,236,200,0.28)');
+    grd.addColorStop(0.07, 'rgba(255,246,228,0.9)');
+    grd.addColorStop(0.2, 'rgba(255,236,200,0.2)');
     grd.addColorStop(1, 'rgba(255,230,190,0)');
     g.fillStyle = grd;
     g.fillRect(0, 0, 256, 256);
@@ -173,7 +173,7 @@ export function createStage({ canvas, sampleUi }) {
     map: glareTex, color: 0xffffff, transparent: true, depthWrite: false, depthTest: false,
     blending: THREE.AdditiveBlending, opacity: 0,
   }));
-  glare.scale.setScalar(0.16);
+  glare.scale.setScalar(0.09);
   glare.renderOrder = 40;
   scene.add(glare);
 
@@ -494,8 +494,8 @@ export function createStage({ canvas, sampleUi }) {
     uniforms.uStudio.value = 1 - look.sun;              // in the sun, its reflection is the only highlight
     uniforms.uSwirl.value = look.swirl;
     uniforms.uSwirlHeat.value = look.heat;
-    sun.intensity = 55 * look.sun;
-    glare.material.opacity = 0.9 * look.sun;
+    sun.intensity = 34 * look.sun;
+    glare.material.opacity = 0.72 * look.sun;
     glare.visible = look.sun > 0.01;
     // the plotter (and its table, film web and light) leaves once the camera has turned to the car;
     // the desk and laptop fade with the laptop
