@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { LAYERS } from '../hood.js';
+import { LAYERS } from '../layers.js';
 import { isTouch, HEX_GLSL } from '../studio.js';
 
 const SIZE = 1;

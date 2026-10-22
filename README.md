@@ -1,8 +1,8 @@
 # son-wow-3D
 
-Website giới thiệu phim bảo vệ sơn PPF cho **Storedetailing**: một chiếc xe 3D trong studio tối kể toàn bộ câu chuyện khi cuộn trang (soi lớp phim, phủ phim, thử nghiệm đá văng, tự phục hồi, 5 lớp phim tách ra từ capo, so sánh trước/sau).
+Website giới thiệu phim bảo vệ sơn PPF cho **Storedetailing**: một câu chuyện 3D kể bằng cách cuộn trang. Chiếc xe trong phần mềm dựng khuôn trên laptop, bộ khuôn gửi sang máy cắt ZAPPA M-1600, máy cắt cả bộ phim một lượt, các mảnh phim bay lên phủ kín xe, bề mặt bóng sâu, vết xước xoáy tự phục hồi dưới nắng, rồi 5 lớp phim tách ra.
 
-Vite + Three.js + GSAP ScrollTrigger + Lenis. Mô hình 3D dựng/xuất từ Blender (`blender/`).
+Một trang duy nhất (`index.html`, code ở `src/v3/`). Vite + Three.js + GSAP + Lenis. Mô hình 3D dựng/xuất từ Blender (`blender/`).
 
 ## Chạy local
 
@@ -20,9 +20,9 @@ docker build -t son-wow-3d .
 docker run -p 3000:3000 son-wow-3d
 ```
 
-Với Dokploy: tạo Application từ repo này, Build Type = **Dockerfile**, port **3000**, bật Auto Deploy để mỗi lần push lên `main` tự build lại.
+Với Dokploy: tạo Application từ repo này, Build Type = **Dockerfile**, port **3000**, bật Auto Deploy để mỗi lần push lên `main` tự build lại. Các địa chỉ cũ `/v2`, `/v3` chuyển về `/`.
 
 ## Ghi chú
 
-- Mô hình xe: “Fictional supercar – V12 Goblin” của ollitei, giấy phép CC BY 4.0 (ghi nguồn ở chân trang, cần giữ nguyên).
-- Nội dung còn chờ xưởng cung cấp: link Zalo / hotline / bản đồ, giá các gói, xác nhận thông số “đến 10 năm” và “~0,2 mm”.
+- Mô hình xe: “Lamborghini Urus 2018” của kirikom9000, giấy phép CC BY 4.0 (ghi nguồn ở thẻ cuối trang, cần giữ nguyên).
+- Nội dung còn chờ xưởng cung cấp: link đặt lịch (Zalo / hotline / bản đồ).

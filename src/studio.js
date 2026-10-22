@@ -129,12 +129,5 @@ float hexEdge(vec2 p) {
 }
 `;
 
-/** Renders only while the element is on screen. */
-export function whenVisible(el, cb) {
-  const io = new IntersectionObserver(([e]) => cb(e.isIntersecting), { rootMargin: '100px' });
-  io.observe(el);
-  return io;
-}
-
 export const isTouch = matchMedia('(hover: none), (pointer: coarse)').matches;
 export const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;

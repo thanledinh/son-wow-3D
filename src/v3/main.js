@@ -1,5 +1,5 @@
 import '../style.css';
-import '../v2/v2.css';
+import '../film.css';
 import './v3.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
