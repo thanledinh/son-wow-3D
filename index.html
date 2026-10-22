@@ -9,10 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="preload" as="image" href="/logo-store.webp" />
 </head>
 <body>
   <div class="loader" id="loader" aria-hidden="true">
-    <div class="loader__brand">STORE<span>DETAILING</span></div>
+    <div class="loader__brand"><span class="logo"><img src="/logo-store.webp" alt="" width="2560" height="968" /></span></div>
     <div class="loader__bar"><i id="loaderBar"></i></div>
     <div class="loader__pct mono"><span id="loaderPct">0</span>%</div>
   </div>
@@ -25,14 +26,14 @@
   <div class="scroll-progress" aria-hidden="true"><i></i></div>
 
   <header class="nav" id="nav">
-    <a href="#top" class="nav__brand" aria-label="Storedetailing — về đầu trang">STORE<span>DETAILING</span></a>
+    <a href="#top" class="nav__brand" aria-label="Store Detailing — về đầu trang"><span class="logo"><img src="/logo-store.webp" alt="" width="2560" height="968" /></span></a>
     <nav class="nav__links" aria-label="Điều hướng chính">
-      <a href="#top" data-chapter="cut">Cắt phim</a>
-      <a href="#top" data-chapter="gloss">Bóng sâu</a>
-      <a href="#top" data-chapter="heal">Tự phục hồi</a>
-      <a href="#top" data-chapter="layers">Cấu tạo</a>
+      <a href="#dong-phim">Dòng phim</a>
+      <a href="#goi-dan">Gói dán</a>
+      <a href="#quy-trinh">Quy trình</a>
+      <a href="#hoi-dap">Hỏi đáp</a>
     </nav>
-    <a href="#top" class="btn btn--accent btn--sm" data-chapter="end" data-magnetic>Đặt lịch</a>
+    <a href="#dat-lich" class="btn btn--accent btn--sm" data-magnetic>Đặt lịch</a>
   </header>
 
   <main>
@@ -68,12 +69,15 @@
         </div>
 
         <div class="endcard" data-in="28.1" data-out="999">
-          <p class="endcard__brand">STORE<span>DETAILING</span></p>
+          <p class="endcard__brand"><span class="logo"><img src="/logo-store.webp" alt="Store Detailing" width="2560" height="968" /></span></p>
           <p class="endcard__line">Dán phim bảo vệ sơn PPF</p>
           <p class="endcard__url mono">storedetailing.vn</p>
         </div>
         <div class="endcta" data-in="28.1" data-out="999">
-          <a href="#top" class="btn btn--accent" data-magnetic data-todo="book">Đặt lịch tư vấn</a>
+          <div class="endcta__row">
+            <a href="#dat-lich" class="btn btn--accent" data-magnetic>Đặt lịch tư vấn</a>
+            <a href="#dong-phim" class="btn btn--ghost">Xem bảng giá</a>
+          </div>
           <p class="endcard__credit">Mô hình xe 3D: <a href="https://sketchfab.com/3d-models/lamborghini-urus-2018-32964087f5d24c3e90482724ddfc2fef" target="_blank" rel="noopener">“Lamborghini Urus 2018”</a> của kirikom9000, giấy phép <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>, đã chỉnh sửa. Storedetailing không liên kết với Automobili Lamborghini.</p>
         </div>
 
@@ -88,7 +92,300 @@
         <div class="film__scroll" id="scrollHint" aria-hidden="true">Cuộn để xem<i></i></div>
       </div>
     </section>
+
+    <!-- after the film: the service itself (picker: src/v3/shop.js; prices: src/v3/catalog.js) -->
+    <section class="sd sd-hero" id="bang-gia" aria-labelledby="sdHeroTitle">
+      <div class="container">
+        <p class="eyebrow" data-reveal>Dán PPF ô tô tại TP.HCM</p>
+        <h2 class="sd-display" id="sdHeroTitle" data-reveal>Lớp giáp vô hình, <em>cho chiếc xe của bạn.</em></h2>
+        <p class="sd-lead" data-reveal>Phim TPU chính hãng 3M, Zappa, Teckwrap và Felix, cắt bằng máy CNC theo rập của từng đời xe và dán trong phòng kín. Bảo hành điện tử chính hãng từ 3 đến 10 năm.</p>
+        <dl class="sd-anchors" data-stagger>
+          <div><dt>Dán full xe</dt><dd><small>từ</small>18.000.000<i>đ</i></dd></div>
+          <div><dt>Dán lẻ từng vị trí</dt><dd><small>từ</small>600.000<i>đ</i></dd></div>
+          <div><dt>PPF nội thất</dt><dd><small>từ</small>2.000.000<i>đ</i></dd></div>
+          <div><dt>Bảo hành chính hãng</dt><dd>3–10<i>năm</i></dd></div>
+        </dl>
+        <div class="sd-actions" data-reveal>
+          <a class="btn btn--accent btn--lg" href="https://zalo.me/storedetailingvn" target="_blank" rel="noopener" data-magnetic>Nhận báo giá qua Zalo</a>
+          <a class="btn btn--ghost btn--lg" href="tel:0378788898">Gọi 0378 78 88 98</a>
+        </div>
+        <p class="sd-note">Giá niêm yết, cập nhật 16/10/2026.</p>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="dong-phim" aria-labelledby="sdFilmsTitle">
+      <div class="container">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Dòng phim</p>
+          <h2 class="sd-title" id="sdFilmsTitle" data-reveal>Bốn thương hiệu. <em>Mười tám mã phim.</em></h2>
+          <p class="sd-lead" data-reveal>Mỗi mã khác nhau ở độ dày màng và thời hạn bảo hành. Chọn cỡ xe để xem giá trọn gói ngoại thất của từng mã.</p>
+        </header>
+        <div class="sd-picker" id="sdPicker" data-reveal></div>
+        <div class="sd-ask" data-reveal>
+          <p><b>Chưa chắc nên chọn mã nào?</b> Gửi dòng xe và thói quen đi lại qua Zalo, kỹ thuật viên gợi ý đúng mã và báo giá theo xe của bạn.</p>
+          <a class="btn btn--accent" href="https://zalo.me/storedetailingvn" target="_blank" rel="noopener">Hỏi kỹ thuật viên</a>
+        </div>
+        <details class="sd-compare">
+          <summary>So sánh cả 18 mã phim</summary>
+          <div class="sd-table-wrap" id="sdTable" data-size="l"></div>
+        </details>
+        <p class="sd-note">Giá trọn gói ngoại thất (VNĐ), niêm yết 16/10/2026. Báo giá chính xác theo dòng xe qua Zalo.</p>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="goi-dan" aria-labelledby="sdPlansTitle">
+      <div class="container">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Gói dán</p>
+          <h2 class="sd-title" id="sdPlansTitle" data-reveal>Phủ kín cả xe, <em>hay chỉ nơi hay trầy.</em></h2>
+          <p class="sd-lead" data-reveal>Dán full xe giữ trọn lớp sơn zin suốt thời hạn bảo hành. Dán lẻ dồn vào những điểm đá dăm và va quẹt chạm tới đầu tiên, tiết kiệm 50–70%.</p>
+        </header>
+        <div class="sd-plans" data-stagger>
+          <article class="sd-plan sd-plan--full">
+            <p class="sd-plan__tag">Bảo vệ 100%</p>
+            <h3>Dán full xe</h3>
+            <p>Bọc kín toàn bộ bề mặt sơn ngoại thất, để xe giữ vẻ như mới suốt 5–10 năm.</p>
+            <ul class="sd-chips">
+              <li>Nắp capo</li><li>Cản trước, hốc gió</li><li>Tai xe, dè trước</li><li>4 cánh cửa</li>
+              <li>Nóc xe</li><li>Cốp và cản sau</li><li>Gương chiếu hậu</li><li>Toàn bộ sườn hông</li>
+            </ul>
+            <div class="sd-plan__foot">
+              <strong><small>từ</small>18.000.000<i>đ</i></strong>
+              <span>Thi công 1.5–2 ngày</span>
+            </div>
+          </article>
+          <article class="sd-plan">
+            <p class="sd-plan__tag">Tiết kiệm 50–70%</p>
+            <h3>Dán lẻ vị trí xung yếu</h3>
+            <p>Mặt trước, mép cửa, hõm tay nắm: những nơi đá dăm và va quẹt tìm tới trước tiên.</p>
+            <ul class="sd-rates">
+              <li>Hõm tay nắm cửa (4 hõm)<b>600.000<i>đ</i></b></li>
+              <li>Mép mở 4 cánh cửa<b>800.000<i>đ</i></b></li>
+              <li>2 gáo gương chiếu hậu<b>800.000 – 1.200.000<i>đ</i></b></li>
+              <li>Nắp capo trước<b>4.000.000 – 6.500.000<i>đ</i></b></li>
+              <li>Cản trước và lưới tản nhiệt<b>6.500.000 – 9.000.000<i>đ</i></b></li>
+              <li>Gói full đầu xe<b>14.000.000 – 28.000.000<i>đ</i></b></li>
+            </ul>
+            <div class="sd-plan__foot"><span>Xong trong ngày · giá theo dòng xe và dòng phim</span></div>
+          </article>
+        </div>
+        <div class="sd-interior" data-reveal>
+          <div>
+            <p class="sd-plan__tag">PPF nội thất · phim Zappa</p>
+            <h3>Giữ khoang lái như ngày nhận xe.</h3>
+            <p>Bệ cửa, ốp táp lô, viền màn hình và khu vực cần số, những chỗ tay chạm vào mỗi ngày.</p>
+          </div>
+          <ul class="sd-tiers">
+            <li class="sd-tier"><span>Cơ bản</span><b>2 vị trí</b><strong>2.000.000 – 3.000.000<i>đ</i></strong></li>
+            <li class="sd-tier"><span>Tiêu chuẩn</span><b>5 vị trí</b><strong>3.000.000 – 6.000.000<i>đ</i></strong></li>
+            <li class="sd-tier"><span>Full nội thất, xe sang</span><b>Trên 5 vị trí</b><strong>6.000.000 – 8.000.000<i>đ</i></strong></li>
+          </ul>
+        </div>
+        <aside class="sd-offer" data-reveal aria-labelledby="sdOfferTitle">
+          <div>
+            <p class="sd-plan__tag">Ưu đãi đang áp dụng</p>
+            <h3 id="sdOfferTitle">Dán full xe, nhận thêm cả gói chăm sóc.</h3>
+            <p>Gọi <a href="tel:0378788898">0378 78 88 98</a> để kiểm tra ưu đãi cho dòng xe của bạn.</p>
+          </div>
+          <ul>
+            <li>Giảm trực tiếp 10–30% gói full xe, tuỳ sản phẩm</li>
+            <li>Tặng gói dán PPF nội thất</li>
+            <li>Tặng gói phủ ceramic cho PPF</li>
+            <li>Tặng 1 năm bảo hiểm PPF, tuỳ thương hiệu</li>
+            <li>Tặng 6 lần bảo dưỡng PPF định kỳ</li>
+            <li>Giảm 30% chi phí dán lại các vị trí lẻ</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="quy-trinh" aria-labelledby="sdStepsTitle">
+      <div class="container">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Quy trình</p>
+          <h2 class="sd-title" id="sdStepsTitle" data-reveal>Mười một bước. <em>Không bước nào làm vội.</em></h2>
+          <p class="sd-lead" data-reveal>Từ lúc nhận xe tới khi bàn giao, trong phòng dán kiểm soát bụi 99% với hệ thống đèn soi khuyết tật chuyên dụng.</p>
+        </header>
+        <ol class="sd-steps" data-stagger>
+          <li class="sd-step"><span class="sd-step__n">01</span><h3>Nhận xe, lập biên bản</h3><p>Soi đèn, chụp lại từng vết xước, vết móp, chỗ sơn dặm cũ và thống nhất cùng bạn.</p></li>
+          <li class="sd-step"><span class="sd-step__n">02</span><h3>Rửa xe chuyên sâu 3 xô</h3><p>Thân vỏ, hốc bánh, khe cửa và cả những chi tiết khuất.</p></li>
+          <li class="sd-step"><span class="sd-step__n">03</span><h3>Tẩy bụi sơn bằng Clay Bar</h3><p>Nhựa đường, bụi sơn, mạt sắt được lấy sạch để bề mặt phẳng láng.</p></li>
+          <li class="sd-step"><span class="sd-step__n">04</span><h3>Sấy khô khe kẽ, gioăng</h3><p>Không để giọt nước nào rỉ ra dưới lớp keo trong lúc dán.</p></li>
+          <li class="sd-step"><span class="sd-step__n">05</span><h3>Vào phòng dán kín</h3><p>Điều hoà kiểm soát bụi 99%, bề mặt được soi lại dưới đèn chuyên dụng.</p></li>
+          <li class="sd-step"><span class="sd-step__n">06</span><h3>Đánh bóng hiệu chỉnh</h3><p>Xử lý xước xoáy trước khi dán, vì mọi khuyết tật sẽ bị khoá dưới lớp phim.</p></li>
+          <li class="sd-step"><span class="sd-step__n">07</span><h3>Tháo chi tiết để giấu mí</h3><p>Đèn, tay nắm, logo, nẹp viền được tháo để mép phim cuộn sâu vào trong.</p></li>
+          <li class="sd-step is-key">
+            <span class="sd-step__n">08</span>
+            <!-- the knife running round two pieces of the kit on the green cutting mat, as in the film above -->
+            <svg class="sd-cut" viewBox="0 0 240 132" aria-hidden="true">
+              <path pathLength="1" d="M18 104 C18 62 52 30 104 26 C124 25 136 34 138 48 L140 104 C110 112 52 112 18 104 Z" />
+              <path pathLength="1" d="M156 30 L222 34 C226 60 226 88 220 112 L160 108 C150 84 150 54 156 30 Z" />
+            </svg>
+            <h3>Cắt phim bằng máy CNC Zappa</h3>
+            <p>Rập đúng từng đời xe, chuẩn tới từng milimét, không một nhát dao trên sơn.</p>
+            <a class="sd-link" href="#top" data-chapter="cut">Xem lại cảnh cắt phim <span aria-hidden="true">↑</span></a>
+          </li>
+          <li class="sd-step"><span class="sd-step__n">09</span><h3>Dán từng chi tiết</h3><p>Ép nước, gạt keo bằng thanh gạt mềm, định vị phim ôm khít từng mảng thân vỏ.</p></li>
+          <li class="sd-step"><span class="sd-step__n">10</span><h3>Sấy định hình, bo mép</h3><p>Gia nhiệt cuộn mép phim vào mặt trong, xử lý dứt điểm bọt khí và nếp nhăn.</p></li>
+          <li class="sd-step"><span class="sd-step__n">11</span><h3>Nghiệm thu, bàn giao</h3><p>Lắp lại chi tiết, vệ sinh toàn bộ và kích hoạt bảo hành điện tử chính hãng.</p></li>
+        </ol>
+        <p class="sd-note">Gói dán lẻ hoàn thành trong ngày. Gói full xe mất 1.5–2 ngày làm việc để keo định hình hoàn chỉnh.</p>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="du-an" aria-labelledby="sdWhyTitle">
+      <div class="container">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Vì sao Store Detailing</p>
+          <h2 class="sd-title" id="sdWhyTitle" data-reveal>Cùng một cuộn phim, <em>tay nghề tạo nên khác biệt.</em></h2>
+          <p class="sd-lead" data-reveal>Phim tốt mới là một nửa. Nửa còn lại là người dán, phòng dán và cách cắt.</p>
+        </header>
+        <div class="sd-pillars" data-stagger>
+          <div class="sd-pillar"><b>5+<small>năm</small></b><h3>Kỹ thuật viên thực chiến</h3><p>Thi công hàng trăm dòng xe, bo mép và giấu mí không để lộ đường cắt.</p></div>
+          <div class="sd-pillar"><b>99<small>%</small></b><h3>Phòng dán kiểm soát bụi</h3><p>Lọc khí và giữ nhiệt độ ổn định để keo bám chắc, bền lâu.</p></div>
+          <div class="sd-pillar"><b>CNC</b><h3>Cắt rập bằng máy Zappa</h3><p>Rập theo từng đời xe, chuẩn tới từng milimét, không dao rọc trên sơn.</p></div>
+          <div class="sd-pillar"><b>3–10<small>năm</small></b><h3>Bảo hành điện tử chính hãng</h3><p>Kèm 6 lần rửa xe detailing, kiểm tra mép và khử ố miễn phí.</p></div>
+        </div>
+        <div class="sd-cases__head" data-reveal>
+          <h3>Xe vừa rời xưởng</h3>
+          <a class="sd-link" href="https://storedetailing.vn/danh-gia" target="_blank" rel="noopener">128+ đánh giá 5.0★ trên Google Maps <span aria-hidden="true">↗</span></a>
+        </div>
+        <ul class="sd-cases" data-stagger>
+          <li class="sd-case"><span class="sd-case__film">Zappa 1398 Pro</span><span class="sd-case__car">Mercedes S450</span><span class="sd-case__scope">Toàn diện, giấu mép kỹ</span></li>
+          <li class="sd-case"><span class="sd-case__film">Zappa 1388</span><span class="sd-case__car">Kia Carnival</span><span class="sd-case__scope">Full body · 2 ngày trong phòng kín</span></li>
+          <li class="sd-case"><span class="sd-case__film">3M Scotchgard 100 Gloss</span><span class="sd-case__car">Toyota Prado</span><span class="sd-case__scope">Cắt rập CNC, không dao rọc</span></li>
+          <li class="sd-case"><span class="sd-case__film">Zappa 1388 Pro</span><span class="sd-case__car">VinFast VF7</span><span class="sd-case__scope">Toàn bộ ngoại thất</span></li>
+          <li class="sd-case"><span class="sd-case__film">Zappa 1388</span><span class="sd-case__car">Ford Everest</span><span class="sd-case__scope">Full xe, chống đá văng</span></li>
+          <li class="sd-case"><span class="sd-case__film">PPF cao cấp</span><span class="sd-case__car">VinFast Limo Green</span><span class="sd-case__scope">Vỏ xe và vách ngăn</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="hieu-ppf" aria-labelledby="sdKnowTitle">
+      <div class="container">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Hiểu đúng về PPF</p>
+          <h2 class="sd-title" id="sdKnowTitle" data-reveal>Dày <span class="sd-nowrap">165–340 micron.</span> <em>Không phải một lớp phủ.</em></h2>
+          <p class="sd-lead" data-reveal>PPF là màng phim trong suốt dán lên sơn để chịu thay đá dăm, va quẹt nhẹ, phân chim, nhựa cây và tia UV. Store Detailing chỉ thi công phim TPU chính hãng.</p>
+        </header>
+        <div class="sd-know" data-stagger>
+          <div class="sd-matrix">
+            <h3>TPU, TPH hay PVC</h3>
+            <div class="sd-matrix__scroll">
+              <table>
+                <thead><tr><th scope="col">Tiêu chí</th><th scope="col" class="is-us">TPU</th><th scope="col">TPH</th><th scope="col">PVC</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Tự phục hồi vết xước</th><td class="is-us">Có, nhờ lớp top-coat</td><td>Hầu như không</td><td>Không</td></tr>
+                  <tr><th scope="row">Ố vàng</th><td class="is-us">Kháng ố nhờ top-coat aliphatic</td><td>Dễ ố sau 6–12 tháng</td><td>Ố và giòn nhanh</td></tr>
+                  <tr><th scope="row">Ôm bề mặt cong</th><td class="is-us">Cao</td><td>Trung bình</td><td>Thấp</td></tr>
+                  <tr><th scope="row">Độ bền thường gặp</th><td class="is-us">5–10 năm</td><td>1–2 năm</td><td>Dưới 1 năm</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sd-matrix">
+            <h3>PPF hay ceramic</h3>
+            <div class="sd-matrix__scroll">
+              <table>
+                <thead><tr><th scope="col">Tiêu chí</th><th scope="col" class="is-us">PPF (TPU)</th><th scope="col">Ceramic</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">Cách bảo vệ</th><td class="is-us">Vật lý: chặn đá văng, va quẹt</td><td>Hoá học: tăng bóng, kháng bám nước</td></tr>
+                  <tr><th scope="row">Độ dày</th><td class="is-us">165–340 micron</td><td>0.5–2 micron</td></tr>
+                  <tr><th scope="row">Giá full xe</th><td class="is-us">18–110 triệu</td><td>6–15 triệu</td></tr>
+                  <tr><th scope="row">Kết hợp</th><td class="is-us">Phủ ceramic lên PPF được</td><td>Không dán PPF đè lên ceramic</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="sd-tip"><b>Kết hợp khéo:</b> dán PPF mặt trước để chống đá dăm, phủ ceramic phần còn lại để tiết kiệm chi phí.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sd sd--lit" id="hoi-dap" aria-labelledby="sdFaqTitle">
+      <div class="container sd-faq">
+        <header class="sd-head">
+          <p class="eyebrow" data-reveal>Hỏi đáp</p>
+          <h2 class="sd-title" id="sdFaqTitle" data-reveal>Những điều <em>chủ xe hay hỏi.</em></h2>
+          <p class="sd-care__title" data-reveal>Sau khi dán</p>
+          <ol class="sd-care" data-reveal>
+            <li>3–7 ngày đầu hạn chế rửa xe, không xịt áp lực cao. Đốm hơi nước li ti dưới phim sẽ tự bay hết.</li>
+            <li>Rửa bằng dung dịch pH trung tính và khăn microfiber sạch.</li>
+            <li>Giữ vòi xịt cách bề mặt ít nhất 30 cm, không xịt thẳng vào mép phim.</li>
+            <li>Lau phân chim, nhựa cây sớm, đừng để lâu dưới nắng.</li>
+            <li>Không đánh bóng bằng chất có hạt mài. Muốn bóng hơn, phủ ceramic dành cho PPF.</li>
+            <li>Bảo dưỡng định kỳ: xưởng tặng 6 lần rửa xe detailing, kiểm tra mép và khử ố.</li>
+          </ol>
+        </header>
+        <div class="sd-qas" data-reveal>
+          <details class="sd-qa" open>
+            <summary>Dán PPF có hại sơn zin không?</summary>
+            <p>Không, với phim TPU chính hãng. Lớp keo nhạy áp bám chắc nhưng khi gia nhiệt và bóc đúng kỹ thuật thì nhả sạch, không làm tróc lớp clear coat. Rủi ro chỉ đến từ xe từng sơn dặm ngoài không sấy nhiệt chuẩn, hoặc phim PVC rẻ tiền dùng keo kém.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>Phim có bị ố vàng không?</summary>
+            <p>Phim PVC, TPH giá rẻ thường ố sau 6–12 tháng. Phim TPU có lớp top-coat aliphatic kháng tia UV, giữ trong suốt 5–10 năm nếu được rửa bằng dung dịch trung tính và bảo dưỡng định kỳ.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>PPF tự phục hồi vết xước thật không?</summary>
+            <p>Có. Vết xước nhẹ và quầng xoáy trên lớp top-coat tự liền lại khi gặp nhiệt, dưới nắng hoặc nước ấm khoảng 60°C. Tính năng này không áp dụng với vết rách thủng qua màng TPU hay móp méo thân vỏ.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>Dán full xe mất bao lâu?</summary>
+            <p>Gói dán lẻ xong trong ngày. Gói full xe mất 1.5–2 ngày làm việc để thi công và để keo định hình hoàn chỉnh.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>Bao lâu sau khi dán thì rửa xe được?</summary>
+            <p>Nên chờ 3–7 ngày để keo ổn định, sau đó rửa bình thường bằng dung dịch pH trung tính và không xịt thẳng vào mép phim.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>Khi nào nên dán PPF?</summary>
+            <p>Khi xe mới hoặc sơn còn đẹp, thường đi cao tốc hay đường công trình, xe màu tối dễ lộ xước, hoặc bạn muốn xe giữ giá khi bán lại. Ngân sách hạn chế thì dán lẻ mặt trước và các vị trí xung yếu, phủ ceramic phần còn lại.</p>
+          </details>
+          <details class="sd-qa">
+            <summary>PPF có chống được móp méo không?</summary>
+            <p>Không. PPF chặn đá dăm, va quẹt nhẹ và vết xước, nhưng không chống được va chạm mạnh làm biến dạng thân vỏ.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section class="sd sd-book sd--lit" id="dat-lich" aria-labelledby="sdBookTitle">
+      <div class="container">
+        <p class="eyebrow" data-reveal>Đặt lịch</p>
+        <h2 class="sd-book__title" id="sdBookTitle" data-reveal>Đặt lịch <em>dán PPF.</em></h2>
+        <p class="sd-lead" data-reveal>Nhắn dòng xe qua Zalo để nhận báo giá đúng theo xe, hoặc gọi thẳng kỹ thuật viên trưởng. Mở cửa 07:30–18:30, cả tuần.</p>
+        <div class="sd-actions" data-reveal>
+          <a class="btn btn--accent btn--lg" href="https://zalo.me/storedetailingvn" target="_blank" rel="noopener" data-magnetic>Nhắn Zalo</a>
+          <a class="btn btn--ghost btn--lg" href="tel:0378788898">Gọi 0378 78 88 98</a>
+        </div>
+        <div class="sd-branches" data-stagger>
+          <article class="sd-branch">
+            <span class="sd-branch__n">Chi nhánh 1 · Trụ sở</span>
+            <h3>Bình Tân</h3>
+            <p>439–441 Đường số 1, Phường An Lạc (P. Bình Trị Đông B cũ), TP. Hồ Chí Minh</p>
+            <p>07:30–18:30, Thứ Hai – Chủ Nhật</p>
+            <a class="sd-link" href="https://www.google.com/maps/search/?api=1&amp;query=Store%20Detailing%2C%20439-441%20%C4%90%C6%B0%E1%BB%9Dng%20s%E1%BB%91%201%2C%20An%20L%E1%BA%A1c%2C%20B%C3%ACnh%20T%C3%A2n%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh" target="_blank" rel="noopener">Chỉ đường <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="sd-branch">
+            <span class="sd-branch__n">Chi nhánh 2</span>
+            <h3>Tân Phú</h3>
+            <p>108A Tô Hiệu, Phường Phú Thạnh, TP. Hồ Chí Minh</p>
+            <p>07:30–18:30, Thứ Hai – Chủ Nhật</p>
+            <a class="sd-link" href="https://www.google.com/maps/search/?api=1&amp;query=Store%20Detailing%2C%20108A%20T%C3%B4%20Hi%E1%BB%87u%2C%20T%C3%A2n%20Ph%C3%BA%2C%20TP.%20H%E1%BB%93%20Ch%C3%AD%20Minh" target="_blank" rel="noopener">Chỉ đường <span aria-hidden="true">↗</span></a>
+          </article>
+        </div>
+      </div>
+    </section>
   </main>
+
+  <footer class="sd-foot">
+    <div class="container">
+      <a class="sd-foot__brand" href="#top" aria-label="Store Detailing — về đầu trang"><span class="logo"><img src="/logo-store.webp" alt="" width="2560" height="968" loading="lazy" /></span></a>
+      <span>Dán phim bảo vệ sơn PPF · TP. Hồ Chí Minh</span>
+      <a href="https://storedetailing.vn/dan-ppf-o-to-tphcm" target="_blank" rel="noopener">storedetailing.vn</a>
+    </div>
+  </footer>
 
   <script type="module" src="/src/v3/main.js"></script>
 </body>

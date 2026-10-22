@@ -1,11 +1,13 @@
 import '../style.css';
 import '../film.css';
 import './v3.css';
+import './shop.css';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Lenis from 'lenis';
 import { loadingManager, isTouch, reducedMotion } from '../studio.js';
 import { createStage, T } from './stage.js';
+import { initShop } from './shop.js';
 
 gsap.registerPlugin(ScrollTrigger);
 document.body.classList.add('is-loading');
@@ -43,6 +45,8 @@ const stage = createStage({
   },
 });
 const D = T.end;
+// the service below the film (built now, so the cursor and the links below pick up its buttons)
+initShop();
 
 let perUnit = 1, top = 0;
 const layout = () => {
@@ -150,7 +154,6 @@ gsap.ticker.add((time) => {
 
 document.querySelectorAll('a[href^="#"]').forEach((a) => {
   a.addEventListener('click', (e) => {
-    if (a.dataset.todo) return;          // placeholder actions (booking link still to come from the shop)
     const key = a.dataset.chapter;
     if (key) {
       e.preventDefault();
@@ -216,8 +219,6 @@ if (!isTouch) {
     last = scroll;
   });
 }
-
-document.querySelectorAll('[data-todo]').forEach((a) => a.addEventListener('click', (e) => e.preventDefault()));
 
 // ---------- loader ----------
 {

@@ -81,18 +81,20 @@
 }
 @media (min-aspect-ratio: 23/20) and (max-height: 420px) { .vcap__sub { display: none; } }
 
-/* end card: one action, and the 3D model's credit (CC BY 4.0 asks for it) */
+/* end card: the actions (booking, or on to the prices below), and the 3D model's credit (CC BY 4.0 asks for it) */
 .endcta { flex-direction: column; align-items: center; gap: 14px; }
+.endcta__row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .endcard__credit { margin: 0; max-width: 560px; font-size: 11px; line-height: 1.5; color: var(--muted); text-align: center; }
 .endcard__credit a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(255, 255, 255, 0.3); }
 /* a phone on its side (SHORT in stage.js): the card takes the left column, the car stands right of it */
 @media (min-aspect-ratio: 23/20) and (max-height: 500px) {
   .endcard { left: var(--gutter); top: 50%; transform: translateY(calc(-100% + 14px)); justify-items: start; gap: 6px; text-align: left; max-width: 44vw; }
   .endcard.is-on { transform: translateY(-100%); }
-  .endcard__brand { font-size: 28px; }
+  .endcard__brand { --logo-h: 40px; }
   .endcard__line { font-size: 15px; }
   .endcta { left: var(--gutter); bottom: auto; top: calc(50% + 16px); transform: translateY(14px); align-items: flex-start; gap: 10px; max-width: 44vw; }
   .endcta.is-on { transform: none; }
   .endcta .btn { --h: 44px; padding: 0 20px; font-size: 14px; }
+  .endcta__row { justify-content: flex-start; gap: 8px; }
   .endcard__credit { text-align: left; font-size: 10px; }
 }
