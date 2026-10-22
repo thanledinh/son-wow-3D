@@ -249,33 +249,28 @@
 /* ---------- eleven steps ---------- */
 .sd-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 0; padding: 0; list-style: none; }
 .sd-step {
-  display: flex; flex-direction: column; min-height: 230px; padding: 24px 24px 26px;
+  position: relative; display: flex; flex-direction: column; padding: 10px 10px 24px;
   border-radius: 22px; border: 1px solid var(--line); background: linear-gradient(170deg, #101317, #0a0b0d);
 }
-.sd-step__n { margin-bottom: auto; font: 500 46px/1 var(--mono); color: transparent; -webkit-text-stroke: 1px rgba(244, 178, 35, 0.55); }
-.sd-step h3 { margin: 28px 0 8px; font-size: 17.5px; line-height: 1.3; letter-spacing: -0.015em; }
-.sd-step p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
-/* the step the film shows: it stands two rows tall, which also fills the grid's last row */
+/* each step's own photo, the number on its corner */
+.sd-step__img { display: block; overflow: hidden; margin-bottom: 18px; aspect-ratio: 16 / 10; border-radius: 14px; background: #15181c; }
+.sd-step--wide { grid-column: span 2; }
+.sd-step--wide .sd-step__img { aspect-ratio: 32 / 10; }       /* (as tall as its neighbours' photos) */
+.sd-step__n {
+  position: absolute; top: 20px; left: 20px; padding: 6px 10px; border-radius: 999px;
+  background: rgba(6, 7, 8, 0.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font: 500 12px/1 var(--mono); letter-spacing: 0.04em; color: var(--accent);
+}
+.sd-step h3 { margin: 0 12px 8px; font-size: 17.5px; line-height: 1.3; letter-spacing: -0.015em; }
+.sd-step p { margin: 0 12px; font-size: 14px; line-height: 1.6; color: var(--muted); }
+/* the step the film shows */
 .sd-step.is-key {
-  grid-row: span 2;
   border-color: rgba(244, 178, 35, 0.55);
-  background: radial-gradient(120% 80% at 0% 0%, rgba(244, 178, 35, 0.16), transparent 60%), linear-gradient(170deg, #17140d, #0a0b0d 70%);
+  background: radial-gradient(120% 80% at 0% 100%, rgba(244, 178, 35, 0.14), transparent 60%), linear-gradient(170deg, #17140d, #0a0b0d 70%);
 }
-.sd-step.is-key .sd-step__n { margin-bottom: 0; color: var(--accent); -webkit-text-stroke: 0; }
-.sd-cut {
-  width: 100%; height: auto; margin: 22px 0 auto; padding: 14px; border-radius: 14px;
-  background-color: #10251d;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
-  background-size: 12px 12px;
-}
-.sd-cut path { fill: rgba(244, 178, 35, 0.07); stroke: var(--accent); stroke-width: 1.6; stroke-linejoin: round; stroke-dasharray: 1; }
-/* the knife draws each outline once the step comes into view */
-.sd-js .sd-step.is-key:not(.is-in) .sd-cut path { stroke-dashoffset: 1; }
-.sd-js .sd-step.is-key.is-in .sd-cut path { animation: sd-cut 2.6s var(--ease) 0.4s both; }
-.sd-js .sd-step.is-key.is-in .sd-cut path + path { animation-delay: 1.4s; }
-@keyframes sd-cut { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+.sd-step.is-key .sd-step__n { background: var(--accent); color: #141006; }
 .sd-step.is-key p { color: var(--ink-2); }
-.sd-step .sd-link { align-self: flex-start; margin-top: 16px; font-size: 13px; }
+.sd-step .sd-link { align-self: flex-start; margin: 16px 12px 0; font-size: 13px; }
 
 /* ---------- why the shop ---------- */
 .sd-pillars { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
@@ -298,20 +293,13 @@
 .sd-case a:hover { transform: translateY(-4px); border-color: rgba(244, 178, 35, 0.4); }
 .sd-case__media { display: block; overflow: hidden; margin-bottom: 8px; aspect-ratio: 16 / 10; border-radius: 14px; background: #15181c; }
 .sd-case__media img { object-position: 80% 50%; }      /* (keeps the shop's corner watermark out of the crop) */
-.sd-case__media img, .sd-reel img { width: 100%; height: 100%; object-fit: cover; filter: saturate(0.92) brightness(0.9); transition: transform 1.2s var(--ease), filter 0.6s; }
-.sd-case a:hover .sd-case__media img, .sd-reel li:hover img { transform: scale(1.05); filter: none; }
+.sd-case__media img, .sd-step__img img { width: 100%; height: 100%; object-fit: cover; filter: saturate(0.92) brightness(0.9); transition: transform 1.2s var(--ease), filter 0.6s; }
+.sd-case a:hover .sd-case__media img, .sd-step:hover .sd-step__img img { transform: scale(1.05); filter: none; }
 .sd-case__film, .sd-case__car, .sd-case__more { padding: 0 12px; }
 .sd-case__film { font: 500 11.5px/1.3 var(--mono); letter-spacing: 0.05em; color: var(--accent); }
 .sd-case__car { font-size: 21px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
 .sd-case__more { font-size: 13px; color: var(--muted); transition: color 0.3s; }
 .sd-case a:hover .sd-case__more { color: var(--accent); }
-
-.sd-reel { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 14px 0 0; padding: 0; list-style: none; }
-.sd-reel li { position: relative; overflow: hidden; aspect-ratio: 4 / 3; border-radius: 18px; background: #15181c; }
-.sd-reel span {
-  position: absolute; left: 0; right: 0; bottom: 0; padding: 36px 16px 14px;
-  background: linear-gradient(rgba(6, 7, 8, 0), rgba(6, 7, 8, 0.86)); font-size: 13.5px; font-weight: 600; color: var(--ink);
-}
 
 /* ---------- knowing the film ---------- */
 .sd-know { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -385,7 +373,7 @@
   .sd-pillars { grid-template-columns: 1fr 1fr; }
   .sd-pillar:nth-child(3) { padding-left: 0; border-left: 0; }
   .sd-pillar:nth-child(n + 3) { margin-top: 28px; border-top: 1px solid var(--line); }
-  .sd-cases, .sd-reel { grid-template-columns: 1fr 1fr; }
+  .sd-cases { grid-template-columns: 1fr 1fr; }
   .sd-faq .sd-head { position: static; }
 }
 @media (max-width: 600px) {
@@ -395,22 +383,14 @@
   .sd-tabs button { padding: 12px 16px 16px; }
   .sd-tabs button::after { left: 16px; right: 16px; }
   .sd-tiers, .sd-offer ul { grid-template-columns: 1fr; }
-  /* the cars become a row to swipe through, the next one peeking in */
-  .sd-cases {
+  /* the cars and the steps become rows to swipe through, the next one peeking in */
+  .sd-cases, .sd-steps {
     display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none;
     margin: 0 calc(-1 * var(--gutter)); padding: 0 var(--gutter) 4px; scroll-padding: 0 var(--gutter);
   }
-  .sd-cases::-webkit-scrollbar { display: none; }
-  .sd-case { flex: 0 0 80%; scroll-snap-align: start; }
-  .sd-reel { gap: 10px; }
-  .sd-reel span { padding: 28px 10px 10px; font-size: 12px; }
-  .sd-steps { grid-template-columns: 1fr; }
-  .sd-step { min-height: 0; display: grid; grid-template-columns: 56px 1fr; column-gap: 8px; }
-  .sd-step__n { grid-row: span 3; margin: 0; font-size: 34px; }
-  .sd-step h3 { margin-top: 2px; }
-  .sd-step .sd-link { grid-column: 2; }
-  .sd-step.is-key { grid-row: auto; display: flex; }
-  .sd-step.is-key h3 { margin-top: 22px; }
+  .sd-cases::-webkit-scrollbar, .sd-steps::-webkit-scrollbar { display: none; }
+  .sd-case, .sd-step { flex: 0 0 80%; scroll-snap-align: start; }
+  .sd-step--wide .sd-step__img { aspect-ratio: 16 / 10; }
   .sd-anchors dd { font-size: 26px; }
   .sd-ask { padding: 22px; }
   .sd-ask .btn { width: 100%; }
@@ -418,5 +398,4 @@
 @media (prefers-reduced-motion: reduce) {
   .sd-js [data-reveal] { opacity: 1; transform: none; transition: none; }
   .sd-panel.is-entering .sd-brand, .sd-panel.is-entering .sd-film { animation: none; }
-  .sd-js .sd-step.is-key .sd-cut path { stroke-dashoffset: 0; animation: none; }
 }
