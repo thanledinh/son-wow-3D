@@ -27,6 +27,7 @@ const card = (b, f) => `
       <span class="sd-film__brand">${b.name}</span>
       ${f.badge ? `<span class="sd-film__badge">${f.badge}</span>` : ''}
     </div>
+    ${f.pack ? `<div class="sd-film__pack"><img src="${import.meta.env.BASE_URL}films/${f.pack}" alt="Hộp phim PPF ${b.name} Series ${f.code}" width="1000" height="156" loading="lazy" decoding="async" /></div>` : ''}
     <h4 class="sd-film__code">${f.code}</h4>
     <div class="sd-swatch" aria-hidden="true">
       <i class="sd-swatch__film"><span>PPF ${f.mil} mil</span></i>
@@ -57,7 +58,7 @@ const panel = (b) => `
       <p class="sd-brand__fit"><b>Phù hợp:</b> ${b.fit}</p>
       <a class="sd-link" href="${b.link}" target="_blank" rel="noopener">Tìm hiểu ${b.full} <span aria-hidden="true">↗</span></a>
     </aside>
-    <div class="sd-grid">${b.films.map((f) => card(b, f)).join('')}</div>
+    <div class="sd-grid${b.films.some((f) => f.pack) ? ' has-packs' : ''}">${b.films.map((f) => card(b, f)).join('')}</div>
   </section>`;
 
 function buildPicker(root, table) {

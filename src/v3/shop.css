@@ -126,6 +126,19 @@
 .sd-film__brand { font: 500 11px/1 var(--mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
 .sd-film__badge { padding: 5px 10px; border-radius: 999px; background: var(--accent); color: #141006; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .sd-film__code { margin: 0; font-size: 32px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+/* the film's own box, tilted across the card like a product shot, in a soft pool of light; cards with a box sit two
+   to a row, so the box is big enough to read */
+.sd-grid.has-packs { grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); }
+.sd-film__pack {
+  display: grid; place-items: center; aspect-ratio: 3.3 / 1; margin: 0 -22px; pointer-events: none;
+  background: radial-gradient(55% 70% at 50% 55%, rgba(255, 255, 255, 0.08), transparent 72%);
+}
+.sd-film__pack img {
+  width: 100%; max-width: none; height: auto;
+  transform: rotate(-6deg); filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.6));
+  transition: transform 0.9s var(--ease);
+}
+.sd-film:hover .sd-film__pack img { transform: rotate(-4deg) translateY(-4px) scale(1.03); }
 
 /* the film in section on the car's paint, drawn to scale: thicker films stand taller */
 .sd-swatch {

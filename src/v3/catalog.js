@@ -17,7 +17,8 @@ export const SIZES = [
 ];
 
 const M = 1e6;
-const film = (code, mil, years, [m, l, xl], note, badge = '') => ({ code, mil, years, price: { m: m * M, l: l * M, xl: xl * M }, note, badge });
+// pack: the film's box (public/films/, cut out of the shop's mock-ups), where there is one
+const film = (code, mil, years, [m, l, xl], note, badge = '', pack = '') => ({ code, mil, years, price: { m: m * M, l: l * M, xl: xl * M }, note, badge, pack });
 
 export const BRANDS = [
   {
@@ -30,12 +31,12 @@ export const BRANDS = [
     fit: 'Chủ xe muốn nhiều bậc lựa chọn để cân đối ngân sách.',
     link: 'https://storedetailing.vn/kien-thuc/dan-ppf-zappa',
     films: [
-      film('1368', 7.5, 5, [18.9, 20.9, 22.9], 'Gói tiết kiệm cho xe chạy phố, tự phục hồi xước dăm nhẹ.', 'Tiết kiệm'),
-      film('1378', 8.5, 5, [25, 27, 28.9], 'Dày hơn 1368, cân bằng giữa chi phí và độ bền.'),
-      film('1388', 9.5, 8, [35, 37, 38.9], 'Mã bán chạy nhất, chống đá dăm tốt khi đi cao tốc.', 'Bán chạy'),
-      film('1388 Pro', 10.5, 8, [46.9, 50.9, 53.9], 'Cho SUV, bán tải hay đi đường xấu, chịu cọ quẹt tốt.'),
-      film('1398', 12.5, 10, [75, 80, 85], 'Màng dày cho xe mới, bảo vệ tối đa.'),
-      film('1398 Pro', 13.5, 10, [86, 93, 99], 'Dày nhất dải Zappa, lựa chọn cao nhất của hãng.', 'Dày nhất'),
+      film('1368', 7.5, 5, [18.9, 20.9, 22.9], 'Gói tiết kiệm cho xe chạy phố, tự phục hồi xước dăm nhẹ.', 'Tiết kiệm', 'zappa-1368.webp'),
+      film('1378', 8.5, 5, [25, 27, 28.9], 'Dày hơn 1368, cân bằng giữa chi phí và độ bền.', '', 'zappa-1378.webp'),
+      film('1388', 9.5, 8, [35, 37, 38.9], 'Mã bán chạy nhất, chống đá dăm tốt khi đi cao tốc.', 'Bán chạy', 'zappa-1388.webp'),
+      film('1388 Pro', 10.5, 8, [46.9, 50.9, 53.9], 'Cho SUV, bán tải hay đi đường xấu, chịu cọ quẹt tốt.', '', 'zappa-1388-pro.webp'),
+      film('1398', 12.5, 10, [75, 80, 85], 'Màng dày cho xe mới, bảo vệ tối đa.', '', 'zappa-1398.webp'),
+      film('1398 Pro', 13.5, 10, [86, 93, 99], 'Dày nhất dải Zappa, lựa chọn cao nhất của hãng.', 'Dày nhất', 'zappa-1398-pro.webp'),
     ],
   },
   {
