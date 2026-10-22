@@ -22,17 +22,13 @@ export function initShop() {
 
 // ---------------------------------------------------------------- the picker
 const card = (b, f) => `
-  <article class="sd-film${f.badge ? ' is-star' : ''}" style="--mil:${f.mil}">
+  <article class="sd-film${f.badge ? ' is-star' : ''}">
     <div class="sd-film__top">
       <span class="sd-film__brand">${b.name}</span>
       ${f.badge ? `<span class="sd-film__badge">${f.badge}</span>` : ''}
     </div>
     ${f.pack ? `<div class="sd-film__pack"><img src="${import.meta.env.BASE_URL}films/${f.pack}" alt="Hộp phim PPF ${b.name} Series ${f.code}" width="1000" height="156" loading="lazy" decoding="async" /></div>` : ''}
     <h4 class="sd-film__code">${f.code}</h4>
-    <div class="sd-swatch" aria-hidden="true">
-      <i class="sd-swatch__film"><span>PPF ${f.mil} mil</span></i>
-      <i class="sd-swatch__paint"><span>Sơn xe</span></i>
-    </div>
     <dl class="sd-film__specs">
       <div><dt>Độ dày</dt><dd>${f.mil} mil <small>${micron(f.mil)} µm</small></dd></div>
       <div><dt>Bảo hành</dt><dd>${f.years} năm</dd></div>

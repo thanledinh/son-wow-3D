@@ -140,32 +140,6 @@
 }
 .sd-film:hover .sd-film__pack img { transform: rotate(-4deg) translateY(-4px) scale(1.03); }
 
-/* the film in section on the car's paint, drawn to scale: thicker films stand taller */
-.sd-swatch {
-  --px: 3.3px;
-  position: relative; display: flex; flex-direction: column; justify-content: flex-end; overflow: hidden;
-  height: calc(13.5 * var(--px) + 30px); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.06);
-  background: radial-gradient(120% 140% at 30% 0%, rgba(255, 255, 255, 0.06), transparent 60%), linear-gradient(180deg, #08090a, #0d0f12);
-}
-.sd-swatch i { position: relative; display: flex; align-items: center; padding: 0 10px; font: 500 9.5px/1 var(--mono); letter-spacing: 0.06em; white-space: nowrap; }
-/* clear film: a bright top coat, a cool glassy core with a streak of studio light, the adhesive's faint blush below */
-.sd-swatch__film {
-  height: calc(var(--mil) * var(--px));
-  color: rgba(243, 240, 234, 0.9);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0 1px, rgba(225, 246, 250, 0.34) 1px, rgba(170, 226, 236, 0.2) 45%, rgba(150, 214, 226, 0.14) 80%, rgba(255, 168, 196, 0.45) calc(100% - 2px), rgba(255, 168, 196, 0.7) 100%);
-}
-.sd-swatch__film::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 16%; height: 24%; pointer-events: none;
-  background: linear-gradient(90deg, transparent 4%, rgba(255, 255, 255, 0.22) 30%, rgba(255, 255, 255, 0.07) 62%, transparent 92%);
-}
-.sd-swatch__paint { height: 16px; color: rgba(40, 28, 0, 0.8); background: linear-gradient(180deg, #ffe27a 0, #f2bf00 32%, #c08b00 100%); }
-.sd-swatch::after {
-  content: ""; position: absolute; inset: -20% 0; pointer-events: none;
-  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.4) 48%, transparent 60%);
-  transform: translateX(-110%); transition: transform 1.2s var(--ease);
-}
-.sd-film:hover .sd-swatch::after { transform: translateX(110%); }
-
 .sd-film__specs { display: flex; gap: 22px; margin: 0; }
 .sd-film__specs dt { font-size: 10.5px; font-weight: 600; letter-spacing: 0.13em; text-transform: uppercase; color: var(--muted); }
 .sd-film__specs dd { margin: 5px 0 0; font-size: 15px; font-weight: 600; white-space: nowrap; }
