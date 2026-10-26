@@ -17,7 +17,7 @@
   transition: opacity 0.6s var(--ease), transform 0.8s var(--ease);
 }
 .intro.is-off { opacity: 0; transform: translateY(calc(-50% - 30px)); }
-.intro__title { font-size: clamp(44px, 5.4vw, 92px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 700; margin: 0; }
+.intro__title { font-size: clamp(40px, 4.86vw, 83px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 700; margin: 0; }
 .intro__title .line { display: block; overflow: hidden; padding-bottom: 0.06em; white-space: nowrap; }
 .intro__title .line > span { display: inline-block; }
 
