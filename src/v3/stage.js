@@ -119,6 +119,7 @@ export function createStage({ canvas, sampleUi }) {
     sfPost = createSfPost(renderer);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
+    renderer.shadowMap.autoUpdate = false;           // (the car and its light never move: drawn once, in warmUp)
   }
 
   const scene = new THREE.Scene();
@@ -460,6 +461,16 @@ export function createStage({ canvas, sampleUi }) {
     renderer.setRenderTarget(null);
     sample.scene.environment = scene.environment;
     await compile(sample.scene, sample.camera);
+    if (STUDIO.sf) {
+      // the shadows of the car's light, drawn once by the camera that sees every layer (a shadow map takes only what
+      // the camera rendering it sees, and the car is on the page's layer only from the lift on)
+      const tiny = new THREE.WebGLRenderTarget(1, 1);
+      renderer.shadowMap.needsUpdate = true;
+      renderer.setRenderTarget(tiny);
+      renderer.render(scene, camera);
+      renderer.setRenderTarget(null);
+      tiny.dispose();
+    }
     camera.layers.mask = mask;
     hidden.forEach((o) => { o.visible = false; });
   }
@@ -768,7 +779,8 @@ export function createStage({ canvas, sampleUi }) {
       laptop.renderView(renderer, scene, t, camera, buf.x, buf.y, smooth(clamp01(cam.hook)), W / H, !copyTop());
     }
     aimKey(camera);
-    if (sfPost) sfPost.render(scene, camera, performance.now() / 1000);
+    // (the page's own SSAO only while the car is in its frame; the laptop's screen brings its own)
+    if (sfPost) sfPost.render(scene, camera, performance.now() / 1000, carInView);
     else renderer.render(scene, camera);
     // the square of film for the five layers, drawn over the frame
     sample.update(t, W, H, layersLayout().box);

@@ -87,9 +87,10 @@ float sfToLinear(float v) { return v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 
 vec3 sfToLinear(vec3 c) { return vec3(sfToLinear(c.r), sfToLinear(c.g), sfToLinear(c.b)); }
 `;
 
+// (at half resolution: each texel stands for the full-size pixels around px = gl_FragCoord * uScale)
 const AO_EXTRACT = /* glsl */ `
-#define TAPS 22
-uniform sampler2D tDepth; uniform mat4 uProjInv; uniform vec2 uTex; uniform vec2 uVp;
+#define TAPS 12
+uniform sampler2D tDepth; uniform mat4 uProjInv; uniform vec2 uTex; uniform vec2 uVp; uniform float uScale;
 uniform float uProjScale; uniform float uRadius; uniform float uBias; uniform float uIntensity; uniform float uFrame;
 ${COMMON}
 vec3 viewPos(vec2 px) {
@@ -98,7 +99,7 @@ vec3 viewPos(vec2 px) {
   return v.xyz / v.w;
 }
 void main() {
-  vec2 px = gl_FragCoord.xy;
+  vec2 px = gl_FragCoord.xy * uScale;
   float d = texture2D(tDepth, px / uTex).r;
   if (d >= 1.0) { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); return; }
   vec3 P = viewPos(px);
@@ -134,7 +135,7 @@ void main() {
   for (int i = -3; i <= 3; i++) {
     int k = i < 0 ? -i : i;
     float w = (k == 0 ? 0.153 : k == 1 ? 0.145 : k == 2 ? 0.123 : 0.093) + 0.3;
-    vec4 t = texture2D(tAO, clamp(px + uDir * float(i) * 2.0, vec2(0.5), uVp - 0.5) / uTex);
+    vec4 t = texture2D(tAO, clamp(px + uDir * float(i), vec2(0.5), uVp - 0.5) / uTex);   // (a half-size texel: 2 px)
     w *= max(0.0, 1.0 - abs(t.g - c.g) / (0.006 * c.g)) * step(1e-5, t.g);
     s += t.r * w;
     ws += w;
@@ -150,24 +151,28 @@ const pass = (fragmentShader, uniforms) => new FullScreenQuad(new THREE.ShaderMa
 
 /**
  * Sketchfab's SSAO (scalable ambient obscurance on the depth buffer, then a depth-aware blur), for a depth texture
- * rendered by `camera` into the lower-left vw × vh of a tw × th target. Returns the AO texture (r; 1 = open), same
- * size and corner.
+ * rendered by `camera` into the lower-left vw × vh of a tw × th target. Returns the AO texture (r; 1 = open) at half
+ * that size, covering the same corner (so the same uv reads it).
+ * Half size and 12 samples: at full size with 22, as Sketchfab's high setting, it cost about 8 ms of GPU a frame at
+ * 1920 × 1080 (twice in the opening shot, for the laptop's screen and for the page).
  */
 export function createSfAO() {
   const opts = { type: THREE.HalfFloatType, depthBuffer: false };
   const a = new THREE.WebGLRenderTarget(16, 16, opts), b = new THREE.WebGLRenderTarget(16, 16, opts);
   const extract = pass(AO_EXTRACT, {
     tDepth: { value: null }, uProjInv: { value: new THREE.Matrix4() }, uTex: { value: new THREE.Vector2() }, uVp: { value: new THREE.Vector2() },
-    uProjScale: { value: 1 }, uRadius: { value: SF.ao.radius }, uBias: { value: SF.ao.bias }, uIntensity: { value: SF.ao.intensity }, uFrame: { value: 0 },
+    uScale: { value: 2 }, uProjScale: { value: 1 }, uRadius: { value: SF.ao.radius }, uBias: { value: SF.ao.bias },
+    uIntensity: { value: SF.ao.intensity }, uFrame: { value: 0 },
   });
   const blur = pass(AO_BLUR, { tAO: { value: null }, uTex: { value: new THREE.Vector2() }, uVp: { value: new THREE.Vector2() }, uDir: { value: new THREE.Vector2() } });
   const frame = 0;
   return {
     uniforms: extract.material.uniforms,
     render(renderer, depth, camera, tw, th, vw, vh) {
-      if (a.width !== tw || a.height !== th) { a.setSize(tw, th); b.setSize(tw, th); }
-      a.viewport.set(0, 0, vw, vh);
-      b.viewport.set(0, 0, vw, vh);
+      const hw = Math.ceil(tw / 2), hh = Math.ceil(th / 2), hvw = Math.ceil(vw / 2), hvh = Math.ceil(vh / 2);
+      if (a.width !== hw || a.height !== hh) { a.setSize(hw, hh); b.setSize(hw, hh); }
+      a.viewport.set(0, 0, hvw, hvh);
+      b.viewport.set(0, 0, hvw, hvh);
       const e = extract.material.uniforms;
       e.tDepth.value = depth;
       e.uProjInv.value.copy(camera.projectionMatrixInverse);
@@ -182,8 +187,8 @@ export function createSfAO() {
       renderer.setRenderTarget(b);
       extract.render(renderer);
       const u = blur.material.uniforms;
-      u.uTex.value.set(tw, th);
-      u.uVp.value.set(vw, vh);
+      u.uTex.value.set(hw, hh);
+      u.uVp.value.set(hvw, hvh);
       u.tAO.value = b.texture;
       u.uDir.value.set(1, 0);
       renderer.setRenderTarget(a);
@@ -309,10 +314,11 @@ export function createSfPost(renderer) {
       finish.material.uniforms.uTex.value.set(w, h);
       finish.material.uniforms.uPr.value = Math.min(1.5, pixelRatio);
     },
-    render(scene, camera, seconds) {
+    // withAO: false where the frame has nothing for it to darken (the car not in it), which saves its passes
+    render(scene, camera, seconds, withAO = true) {
       renderer.setRenderTarget(hdr);
       renderer.render(scene, camera);
-      grade.material.uniforms.tAO.value = ao.render(renderer, hdr.depthTexture, camera, hdr.width, hdr.height, hdr.width, hdr.height);
+      grade.material.uniforms.tAO.value = withAO ? ao.render(renderer, hdr.depthTexture, camera, hdr.width, hdr.height, hdr.width, hdr.height) : WHITE;
       renderer.setRenderTarget(ldr);
       grade.render(renderer);
       const f = finish.material.uniforms;
