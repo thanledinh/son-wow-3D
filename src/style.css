@@ -50,8 +50,6 @@ img, canvas, svg { display: block; }
   text-transform: uppercase;
   color: var(--ink-2);
 }
-.eyebrow::before { content: ""; width: 28px; height: 1px; background: var(--accent); }
-.eyebrow:has(.eyebrow__n)::before { display: none; }
 .eyebrow__n { display: inline-flex; align-items: center; gap: 12px; font: 500 12px/1 var(--mono); letter-spacing: 0.04em; color: var(--accent); }
 .eyebrow__n::after { content: ""; width: 28px; height: 1px; background: rgba(255, 255, 255, 0.3); }
 
