@@ -1,0 +1,3 @@
+# Radiance HDR panoramas are binary (git can take one for text and rewrite its line endings)
+*.hdr binary
+*.exr binary

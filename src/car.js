@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { gltfLoader, asset, HEX_GLSL } from './studio.js';
 
 // Car space = the GLB root: y up, front of the car at -Z, rear at +Z. Lamborghini Urus: 5.11 m long, 1.65 m tall.
@@ -16,6 +17,8 @@ uniform float uGloss;                   // -1 before the film: one flat colour �
 uniform float uSweep;                   // 0→1 a band of light runs nose → tail as the film goes on (off outside 0..1)
 uniform float uStudio;                  // the studio softboxes seen in a glossy finish (off when the sun takes over)
 uniform float uForm;                    // 0 off · 1 a photo studio's top light: lit tops, deeper sides (the paint's own light)
+uniform float uCeramic;                 // 0 off · 1 a ceramic coat: glass-smooth and razor-sharp reflections from the start
+uniform float uBoxes;                   // the softboxes' strength for this paint (a dark paint has no colour to hold them)
 uniform float uSwirl; uniform float uSwirlHeat; uniform float uSwirlR;
 uniform vec3 uSwirlC; uniform vec3 uSwirlN; // swirl marks ring the sun's reflection at uSwirlC (car space, plane normal)
 varying vec3 vCarPos; varying vec3 vCarNrm;
@@ -59,15 +62,16 @@ const WEAR_LIGHTING = /* glsl */ `
   // under PPF the colour reads cleaner and more saturated (same brightness) and the clear layer is glass-smooth;
   // before it the paint is one flat colour: its clear coat barely reflects and the base sheen is soft
   float gp = max(uGloss, 0.0), gn = max(-uGloss, 0.0);
+  float gc = max(gp, uCeramic);           // a ceramic coat gives factory paint the film's clean, glass-smooth top
   vec3 dc = material.diffuseContribution;
   vec3 dl = vec3(dot(dc, vec3(0.2126, 0.7152, 0.0722)));
-  material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.1, 0.0), gp);
+  material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.1, 0.0), gc);
   // a big softbox overhead: bonnet and roof take the light, the flanks fall off into a deeper gold
   material.diffuseContribution *= mix(1.0, mix(0.58, 1.12, smoothstep(-0.35, 0.85, vCarNrm.y)), uForm);
-  material.roughness = mix(material.roughness * mix(1.0, 0.8, gp), 0.62, gn);
+  material.roughness = mix(material.roughness * mix(1.0, 0.8, gc), 0.62, gn);
   #ifdef USE_CLEARCOAT
     material.clearcoat = mix(material.clearcoat, 0.12, gn);
-    material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gp), 0.35, gn);
+    material.clearcoatRoughness = mix(mix(material.clearcoatRoughness, 0.0, gc), 0.35, gn);
   #endif
 }
 `;
@@ -147,27 +151,31 @@ const OVERLAYS = /* glsl */ `
   // the studio's softboxes in the clear coat, as a photographer sets them for a car (uForm: the v3 look). Factory
   // paint is glossy but calm: the boxes show as soft, broad glows. Under the film they firm up and brighten a step,
   // no more (real film deepens the paint; pushed further it reads as plastic).
-  float boxW = uForm * uStudio * (uGloss >= 0.0 ? mix(0.4, 0.62, gpo) : 0.4 * max(0.0, 1.0 + uGloss));
-  float soft = mix(0.12, 0.05, gpo);                        // how blurred the reflected boxes are (direction units)
+  // A ceramic coat (uCeramic) turns the boxes into crisp, bright shapes, razor-edged and seen face-on too, factory paint
+  // already past the film's look and the film a step on. The even sheen of the second reflection stays where the film
+  // had it: spread over the whole body it greys the colour, which is what reads as plastic.
+  float boxW = uForm * uStudio * uBoxes * (uGloss >= 0.0 ? mix(mix(0.4, 0.62, gpo), mix(0.85, 1.0, gpo), uCeramic) : 0.4 * max(0.0, 1.0 + uGloss));
+  float soft = mix(mix(0.12, 0.05, gpo), mix(0.02, 0.006, gpo), uCeramic);    // how blurred the reflected boxes are
+  float face = mix(0.12, 0.34, uCeramic);                  // how much of a box shows on a panel seen face-on
   if (gpo > 0.001 || boxW > 0.001) {
     vec3 Vg = normalize(vViewPosition);
     float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
-    // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection
-    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.02 + 0.4 * fg) * gpo;
+    // --- PPF finish: the film's own mirror-smooth top layer adds a second, sharper reflection (so does a ceramic coat)
+    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.02 + 0.4 * fg) * mix(gpo, 0.5 + 0.5 * gpo, uCeramic);
     // the softboxes: a lit band round the horizon cut into tall panels, a thin strip above it (crisp, film only), and
     // two long strips overhead running nose to tail. Only the mirror layer sees them; the paint's own light is unchanged.
     vec3 rw = inverseTransformDirection(reflect(-Vg, normal), viewMatrix);
     float ay = fwidth(rw.y) * 0.75 + 1e-4 + soft;
     float band = smoothstep(-0.05 - ay, -0.05 + ay, rw.y) * (1.0 - smoothstep(0.24 - ay, 0.24 + ay, rw.y));
     float ly = fwidth(rw.y) * 0.75 + 1e-4;
-    float line = smoothstep(0.35 - ly, 0.35 + ly, rw.y) * (1.0 - smoothstep(0.39 - ly, 0.39 + ly, rw.y)) * gpo;
+    float line = smoothstep(0.35 - ly, 0.35 + ly, rw.y) * (1.0 - smoothstep(0.39 - ly, 0.39 + ly, rw.y)) * max(gpo, 0.75 * uCeramic);
     float az = atan(rw.z, rw.x) * 0.63661977;                 // quarter turns
     float pa = fract(az + 0.5), pw = min(fwidth(az), fwidth(pa)) * 0.75 + 1e-4 + soft * 0.7;   // (atan's seam, fract's wrap)
     float panel = smoothstep(0.1 - pw, 0.1 + pw, pa) * (1.0 - smoothstep(0.86 - pw, 0.86 + pw, pa));
     float ox = abs(rw.x) / max(rw.y, 0.05), ow = fwidth(ox) * 0.75 + 1e-4 + soft * 0.9;
     float over = (smoothstep(0.2 - ow, 0.2 + ow, ox) - smoothstep(0.29 - ow, 0.29 + ow, ox)) * smoothstep(0.5, 0.56, rw.y);
-    vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 2.2) * panel + over * 2.6);
-    gl_FragColor.rgb += boxes * (0.12 + 0.88 * fg) * boxW;
+    vec3 boxes = vec3(1.0, 0.98, 0.95) * ((band * 3.0 + line * 2.2) * panel + over * 2.6) * mix(1.0, 1.5, uCeramic);
+    gl_FragColor.rgb += boxes * (face + (1.0 - face) * fg) * boxW;
   }
   #endif
   // the film going on: one band of light sweeps the car from nose to tail
@@ -234,6 +242,8 @@ export function createUniforms() {
     uSweep: { value: -1 },
     uStudio: { value: 1 },
     uForm: { value: 0 },
+    uCeramic: { value: 0 },
+    uBoxes: { value: 1 },
     uSwirl: { value: 0 },
     uSwirlHeat: { value: 0 },
     uSwirlR: { value: 0.35 },
@@ -413,7 +423,9 @@ function setupWheels(root) {
   };
 }
 
-export async function loadCar(uniforms) {
+export async function loadCar(uniforms, { exact = false } = {}) {
+  const trial = TRIAL_CARS[new URLSearchParams(location.search).get('car')];
+  if (trial) return loadTrial(trial, uniforms, exact);
   const gltf = await gltfLoader.loadAsync(asset('models/car.glb'));
   const root = gltf.scene;
   let paint = null;
@@ -436,4 +448,132 @@ export async function loadCar(uniforms) {
   const roll = setupWheels(root);
   const body = root.getObjectByName('Body');
   return { root, paint, body, roll };
+}
+
+/**
+ * Trials (?car=…): other Sketchfab models in place of ours (each credited in the footer under its own licence; only
+ * the 911's files are deployed). Each is turned nose to -z, scaled to its real
+ * length, centred, wheels on the floor. The meshes that carry its body paint become one Paint mesh in our paint
+ * material (the film's gloss, sweep and swirl marks live there; one mesh also serves the bonnet raycast), and
+ * dress() sees to the rest. ownColor: the paint keeps the model's own colour (stage.js leaves it unless ?paint=).
+ * (three drops the dots from glTF node names: Plane.077 → Plane077.)
+ */
+const TRIAL_CARS = {
+  // "Lamborghini Urus" by sepp: every part in one black lacquer, its paint two shells; nose +z, about 3× too big
+  sepp: {
+    url: 'models/sepp/scene.gltf', length: 5.11,
+    isPaint: (o) => /^Plane\.?077/.test(o.name),
+    dress(o, m) {
+      const n = o.name;
+      if (/^Plane\.?(092|078|073)/.test(n)) o.material = m.darkGlass;   // greenhouse, sunroof, a side pane
+      else if (/^Cube\.?0(63|64|65|70)_/.test(n)) o.material = m.caliper;
+      else if (/^Plane\.?076/.test(n)) o.material = m.badge;
+      else o.material = m.trim;
+    },
+  },
+  // "2019 Porsche 911 Carrera S Cabriolet (992)" by Ddiaz Design: fully dressed (cabin, lights, rims, the cloth roof).
+  // Its paint is a colour atlas, a blue-grey silver with small swatches for trim, kept with its own finish; glass
+  // that refracts (transmission: an extra pass every frame) becomes ours
+  porsche: {
+    url: 'models/porsche/scene.gltf', length: 4.52, ownColor: true, ownFinish: true,
+    isPaint: (o) => o.material?.name === 'SMI_1228010001_002',
+    dress(o, m) {
+      if (o.material.transmission > 0) o.material = m.glass;
+      else o.material.envMapIntensity = 1.15;
+    },
+  },
+  // "Porsche 911" (a 2021 911 Targa 4S, 992) by Outlaw Games (CC BY-NC 4.0, credited in the footer; on the live site
+  // only through ?car=porsche911, the user's call; a game car re-uploaded from Ddiaz Design's "2021 Porsche 911 Targa
+  // 4S (992)"): its paint one plain colour,
+  // Racing Yellow, with a finish made for the game's shader (metal 1, rough 0.6), so it takes ours. Its glass (cabin,
+  // headlamp covers, targa panel) was black at 40%, which in three dims the reflections with the see-through: clear
+  // glass instead, as on Sketchfab, and the lamps' chrome made to catch the light.
+  // (viewerColor: the lemon yellow Sketchfab's viewer shows it in, measured off a screenshot; its export carries a
+  // warmer yellow, 253/222/0)
+  // exact (?studio=sketchfab): everything as Sketchfab has it instead, its own paint (metal under a clear coat) and its
+  // 40% black glass included; its specular 1 is an F0 of 8% (ior 1.79 in three), and two parts at opacity 0 never show
+  porsche911: {
+    url: 'models/porsche911/scene.gltf', length: 4.52, ownColor: true, viewerColor: 0xf4e600,
+    isPaint: (o) => o.material?.name === 'PAINT_COLOR_4',
+    dress(o, m) {
+      const n = o.material.name;
+      if (m.exact) {
+        if (o.material.opacity === 0) o.visible = false;
+        else if (o.material.isMeshPhysicalMaterial) o.material.ior = 1.78885;
+        return;
+      }
+      if (n === 'GLASS_7') o.material = m.clearGlass;
+      else if (n === 'LIGHTS_5') o.material.setValues({ envMapIntensity: 2.2, roughness: 0.22 });
+      else o.material.envMapIntensity = 1.15;
+    },
+  },
+};
+
+async function loadTrial(trial, uniforms, exact) {
+  const gltf = await gltfLoader.loadAsync(asset(trial.url));
+  const model = gltf.scene;
+  model.rotation.y = Math.PI;
+  model.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  model.scale.multiplyScalar(trial.length / Math.max(size.x, size.z));
+  model.updateMatrixWorld(true);
+  box.setFromObject(model);
+  const mid = box.getCenter(new THREE.Vector3());
+  model.position.set(-mid.x, -box.min.y, -mid.z);
+  const root = new THREE.Group();
+  root.add(model);
+  root.updateMatrixWorld(true);
+
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0x020304, metalness: 0, roughness: 0.03, clearcoat: 1, transparent: true, opacity: 0.86, envMapIntensity: 1.8,
+  });
+  // (for a model with no cabin: the far side's inner panels and wheels would show through, and some panes face in)
+  const darkGlass = glass.clone();
+  darkGlass.setValues({ color: 0x010102, opacity: 0.97, side: THREE.DoubleSide });
+  const mats = {
+    exact,
+    glass,
+    darkGlass,
+    // clear glass that refracts (transmission: one more pass of the opaque scene a frame), reflections at full strength
+    clearGlass: new THREE.MeshPhysicalMaterial({
+      color: 0xffffff, metalness: 0, roughness: 0, transmission: 1, thickness: 0, ior: 1.5, envMapIntensity: 1.6,
+      side: THREE.DoubleSide,
+    }),
+    trim: new THREE.MeshPhysicalMaterial({
+      color: 0x0b0c0e, metalness: 0.25, roughness: 0.38, clearcoat: 0.6, clearcoatRoughness: 0.2, envMapIntensity: 1.15,
+    }),
+    caliper: new THREE.MeshPhysicalMaterial({ color: 0xf2bf00, roughness: 0.35, clearcoat: 1, envMapIntensity: 1.15 }),
+    badge: new THREE.MeshPhysicalMaterial({ color: 0xc9ccd1, metalness: 1, roughness: 0.22, envMapIntensity: 1.15 }),
+  };
+  const shells = [];
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    if (trial.isPaint(o)) shells.push(o);
+    else trial.dress(o, mats);
+  });
+  const own = shells[0].material;
+  // the paint meshes in the root's space, merged (uv kept when they all have it: the colour atlas needs it)
+  const keep = shells.every((m) => m.geometry.attributes.uv) && trial.ownColor ? ['position', 'normal', 'uv'] : ['position', 'normal'];
+  let parts = shells.map((m) => {
+    const g = m.geometry.clone();
+    for (const k of Object.keys(g.attributes)) if (!keep.includes(k)) g.deleteAttribute(k);
+    g.applyMatrix4(m.matrixWorld);
+    m.removeFromParent();
+    return g;
+  });
+  if (!parts.every((g) => g.index)) parts = parts.map((g) => (g.index ? g.toNonIndexed() : g));
+  const material = makePaint(uniforms);
+  if (trial.ownColor) {
+    material.setValues({ map: own.map, side: own.side });
+    material.color.copy(own.color);
+  }
+  if (trial.ownFinish) material.setValues({ metalness: own.metalness, roughness: own.roughness });
+  if (exact) {
+    material.setValues({ metalness: own.metalness, roughness: own.roughness, clearcoat: own.clearcoat ?? 0, clearcoatRoughness: own.clearcoatRoughness ?? 0 });
+  }
+  const paint = new THREE.Mesh(mergeGeometries(parts), material);
+  paint.name = 'Paint';
+  root.add(paint);
+  return { root, paint, body: null, roll: () => {}, ownColor: !!trial.ownColor, trial: true, own, viewerColor: trial.viewerColor, sfModel: model.getObjectByName('Sketchfab_model') };
 }

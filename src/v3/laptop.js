@@ -98,6 +98,11 @@ export function createLaptop() {
     uOn: { value: 1 },
     uAlpha: { value: 1 },
     uExposure: { value: 1 },
+    uLinear: { value: 0 },           // 1: the page's tone mapping is linear (a Sketchfab-like studio), so is the screen's
+    // 1: the page's frame goes through Sketchfab's post (setSf): the screen gives its render's light as it is, with
+    // its own SSAO (uAO) in it, and the page grades it with the rest of the frame
+    uSf: { value: 0 },
+    uAO: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })() },
   };
   const screenMat = new THREE.ShaderMaterial({
     uniforms: screenU,
@@ -108,7 +113,8 @@ export function createLaptop() {
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D uUI; uniform sampler2D uView; uniform vec4 uRect; uniform vec4 uSub; uniform vec2 uSubScale; uniform vec2 uTexel;
-      uniform float uOn; uniform float uAlpha; uniform float uExposure;
+      uniform float uOn; uniform float uAlpha; uniform float uExposure; uniform float uLinear;
+      uniform float uSf; uniform sampler2D uAO;
       varying vec2 vUv;
       vec3 neutral(vec3 c) {   // the renderer's Khronos PBR Neutral, so the screen matches the page's own frames
         const float startCompression = 0.8 - 0.04;
@@ -133,7 +139,9 @@ export function createLaptop() {
         vec2 q = r - 0.5;
         if (ra < ${RT_ASPECT.toFixed(4)}) q.x *= ra / ${RT_ASPECT.toFixed(4)}; else q.y *= ${RT_ASPECT.toFixed(4)} / ra;
         vec2 s = clamp((q + 0.5 - uSub.xy) / max(uSub.zw - uSub.xy, vec2(1e-4)), 0.0, 1.0) * uSubScale;
-        vec3 view = neutral(texture2D(uView, clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5)).rgb);
+        vec2 sc = clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5);
+        vec3 hdr = texture2D(uView, sc).rgb;
+        vec3 view = uSf > 0.5 ? hdr * texture2D(uAO, sc).r : uLinear > 0.5 ? clamp(hdr * uExposure, 0.0, 1.0) : neutral(hdr);
         vec4 ui = sRGBTransferEOTF(texture2D(uUI, vec2(vUv.x, 1.0 - vUv.y)));
         vec3 col = mix(view * inside, ui.rgb, ui.a);
         gl_FragColor = vec4(col * uOn, uAlpha);
@@ -562,6 +570,8 @@ export function createLaptop() {
    * (the screen fills the frame) → 0 once pulled back; aspect: the page's width / height; copyLeft: the headline sits
    * in a left column (else above the picture).
    */
+  let viewHook = null;                          // called with the viewport camera just before it renders (setViewHook)
+  let sfAO = null;                              // Sketchfab's SSAO for the viewport (setSf)
   const renderView = (renderer, scene, time, camera, bw, bh, hook, aspect, copyLeft) => {
     if (state.on < 0.01 || state.alpha < 0.01) return;
     if (!seenBox(camera)) return;
@@ -634,8 +644,10 @@ export function createLaptop() {
     fog.near = dist + 4;
     fog.far = dist + 22;
     rt.viewport.set(0, 0, pw, ph);
+    if (viewHook) viewHook(view);
     renderer.setRenderTarget(rt);
     renderer.render(scene, view);
+    if (sfAO) screenU.uAO.value = sfAO.render(renderer, rt.depthTexture, view, rt.width, rt.height, pw, ph);
     renderer.setRenderTarget(null);
     fog.near = near;
     fog.far = far;
@@ -679,6 +691,16 @@ export function createLaptop() {
     markReady: Promise.all([markWide.ready, markTall.ready]),
     setKit: (k) => { kit = k; dirty = true; },
     refresh: () => { dirty = true; },
+    setLinearTone: (on, exposure = 1) => {
+      screenU.uLinear.value = on ? 1 : 0;
+      screenU.uExposure.value = exposure;
+    },
+    setViewHook: (fn) => { viewHook = fn; },
+    setSf: (ao) => {
+      sfAO = ao;
+      rt.depthTexture = new THREE.DepthTexture(rt.width, rt.height);
+      screenU.uSf.value = 1;
+    },
     tmp,
   };
 }

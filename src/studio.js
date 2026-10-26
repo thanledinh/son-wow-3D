@@ -52,6 +52,7 @@ export function makeStudioEnv(renderer, {
   }
   const plane = new THREE.PlaneGeometry(1, 1);
   const add = (color, intensity, pos, scale) => {
+    if (strips <= 0) return;                         // (a photographed studio on its own: no boxes of ours)
     const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity * strips), side: THREE.DoubleSide });
     const m = new THREE.Mesh(plane, mat);
     m.position.set(...pos);

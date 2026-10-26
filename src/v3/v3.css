@@ -81,6 +81,30 @@
 }
 @media (min-aspect-ratio: 23/20) and (max-height: 420px) { .vcap__sub { display: none; } }
 
+/* trial (?studio=light): a pale showroom behind the car, so the frame's edge and the shade behind the copy go pale and
+   the film's own copy goes dark */
+.studio-light .film__vignette {
+  background:
+    radial-gradient(120% 95% at 50% 45%, transparent 62%, rgba(197, 200, 204, 0.55) 100%),
+    linear-gradient(to top, rgba(197, 200, 204, 0.5), transparent 26%);
+}
+.studio-light .side-shade, .studio-light .side-shade.is-strong {
+  background: linear-gradient(90deg, rgba(243, 244, 245, 0.5) 0%, rgba(243, 244, 245, 0.18) 24%, rgba(243, 244, 245, 0) 40%);
+}
+.studio-light .film { color: #15171a; }
+.studio-light .intro, .studio-light .vcap, .studio-light .endcard { text-shadow: none; }
+.studio-light .film .eyebrow, .studio-light .vcap__eyebrow, .studio-light .vcap__sub, .studio-light .endcard__line { color: #3c4048; }
+
+/* trial (?studio=sketchfab): its own post does the vignette (sflook.js), so the page adds none */
+.studio-sketchfab .film__vignette { background: none; }
+/* ?sfcam: the canvas alone, to lay over a capture of Sketchfab's viewer */
+.sf-compare body * { visibility: hidden !important; }
+.sf-compare .film__canvas { visibility: visible !important; }
+/* trial (?studio=sketchfab0): Sketchfab's vignette, a flat grey going darker only in the far corners */
+.studio-sketchfab0 .film__vignette { background: radial-gradient(140% 120% at 50% 50%, transparent 55%, rgba(95, 95, 95, 0.35) 100%); }
+/* and its post-processing's lift in colour and contrast */
+.studio-sketchfab0 .film__canvas { filter: saturate(1.12) contrast(1.06); }
+
 /* end card: the actions (booking, or on to the prices below); the 3D model's credit is in the footer */
 .endcta { flex-direction: column; align-items: center; gap: 14px; }
 .endcta__row { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }

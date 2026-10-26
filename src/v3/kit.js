@@ -427,5 +427,37 @@ export function createKit() {
     return out.set(tmp3[0], tmp3[1], tmp3[2]);
   };
 
-  return { state, ready, rig, pieces, update, layoutCentre, get layout() { return layout; }, get panels() { return panels; } };
+  /**
+   * Stretch the pieces' shapes on the car (not their flat layout on the table) to another car's paint box, so they
+   * land on its body, roof and bumpers (for a trial car; their outlines stay our Urus's). Across and along the car
+   * they scale about its centre, upwards about the floor; the flat layout is a delta from the shape, so it is put back.
+   */
+  const fitTo = (box) => {
+    const kb = new THREE.Box3();
+    panels.forEach((p) => { p.mesh.geometry.computeBoundingBox(); kb.union(p.mesh.geometry.boundingBox); });
+    const s = [
+      (box.max.x - box.min.x) / (kb.max.x - kb.min.x),
+      box.max.y / kb.max.y,
+      (box.max.z - box.min.z) / (kb.max.z - kb.min.z),
+    ];
+    const scale = new THREE.Vector3(...s);
+    panels.forEach((p) => {
+      const geo = p.mesh.geometry, pos = geo.attributes.position, d = geo.morphAttributes.position[0];
+      for (let v = 0; v < pos.count; v++) {
+        for (let a = 0; a < 3; a++) {
+          const b = pos.getComponent(v, a);
+          d.setComponent(v, a, d.getComponent(v, a) + b - b * s[a]);
+          pos.setComponent(v, a, b * s[a]);
+        }
+      }
+      pos.needsUpdate = true;
+      d.needsUpdate = true;
+      geo.computeBoundingBox();
+      geo.computeBoundingSphere();
+      p.rest.multiply(scale);
+      p.out.multiply(scale);
+    });
+  };
+
+  return { state, ready, rig, pieces, update, layoutCentre, fitTo, get layout() { return layout; }, get panels() { return panels; } };
 }
