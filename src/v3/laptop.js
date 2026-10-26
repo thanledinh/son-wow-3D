@@ -580,7 +580,7 @@ export function createLaptop() {
     const slice = Math.min(1, aspect / RT_ASPECT);
     const squeeze = copyLeft ? 1 - slice : 0;
     const lower = copyLeft ? 0 : clamp01((aspect - 0.9) / 0.4);
-    const room = copyLeft ? 1.12 : 1;                       // beside the headline the turning car keeps clear of it
+    const room = copyLeft ? 1.245 : 1;                    // beside the headline the turning car keeps clear of it, with air round it
     const open = 1 + (Math.max(1, 0.98 / slice) * room * (1 + squeeze * 1.4) * (1 + lower * 0.2) - 1) * hook;
     view.fov = (Math.atan(Math.tan((VIEW_FOV * Math.PI) / 360) * open) * 360) / Math.PI;
     const away = 1 - ease(state.ui);
