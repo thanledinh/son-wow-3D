@@ -2,9 +2,9 @@ import * as THREE from 'three';
 import gsap from 'gsap';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { makeStudioEnv, radialTexture, hdrLoader, asset, gltfLoader, SOFT_REFLECTOR, isTouch } from '../studio.js';
-import { loadCar, createUniforms } from '../car.js';
+import { loadCar, createUniforms, SHOWN_CAR, CAR_KEY } from '../car.js';
 import { cuttingMat } from '../cutter.js';
-import { createKit } from './kit.js';
+import { createKit, URUS_KIT } from './kit.js';
 import { createLaptop } from './laptop.js';
 import { createCable } from './cable.js';
 import { createSample } from './sample.js';
@@ -40,11 +40,13 @@ const STUDIOS = {
   // Trinitatis Church panorama its viewer lights the 911 with), lights, shading and post-processing, on its white
   // background that the post turns a light grey, over the ambient occlusion it bakes into the ground under the car.
   // mark: the name behind the car comes out a shade darker than the background after the post
+  // The page's own since 2026-10-26, on a dark grey (the user's pick over Sketchfab's white): its colour balance turns
+  // it a deep blue-grey, the car's shadow still shows on it and the copy goes back to white
   sketchfab: {
-    bg: 0xffffff, centre: '#ffffff', edge: '#ffffff', mirror: 0x9a9a9a, pool: 0, poolColor: '255,255,255',
+    bg: 0x303030, centre: '#303030', edge: '#303030', mirror: 0x9a9a9a, pool: 0, poolColor: '255,255,255',
     fade: 'rgb(140,140,140)', hdri: 'trial/trinitatis_1024.hdr', sf: true,
     envIntensity: SF.envIntensity, envRotation: SF.envRotation,
-    mark: 0xdadada, light: true, floor: false, shadow: 1, viewer: true, form: 0, boxes: 0,
+    floor: false, shadow: 1, viewer: true, form: 0, boxes: 0,
     cls: 'studio-sketchfab',
   },
   // sketchfab0: the first try at its look (Poly Haven's studio_small_09, linear, our paint in the viewer's colour)
@@ -60,7 +62,7 @@ const STUDIOS = {
 // trial: ?sfcam=ex,ey,ez,tx,ty,tz,fov in Sketchfab's world (its viewer's camera): the car alone from there, to lay our
 // frame over a capture of its viewer
 const SFCAM = new URLSearchParams(location.search).get('sfcam')?.split(',').map(Number) ?? null;
-const STUDIO = STUDIOS[new URLSearchParams(location.search).get('studio')] ?? STUDIOS.dark;
+const STUDIO = STUDIOS[new URLSearchParams(location.search).get('studio')] ?? STUDIOS.sketchfab;
 const ENV_TURN = +new URLSearchParams(location.search).get('rot') || 0;   // trial: turn the studio round the car (rad)
 const BG = STUDIO.bg;
 const DESK = new THREE.Vector3(-3.95, 0, -2.78);   // standing desk in front of the plotter's control-panel end
@@ -289,8 +291,9 @@ export function createStage({ canvas, sampleUi }) {
   const uniforms = createUniforms();
   uniforms.uForm.value = 1;                           // the paint lit like a studio photo: bright tops, deep gold flanks
   if (new URLSearchParams(location.search).get('finish') === 'ceramic') uniforms.uCeramic.value = 1;   // trial
-  const kit = createKit();
-  const laptop = createLaptop();
+  // the car's own kit (a trial car may have none: the Urus's, stretched to it once it loads)
+  const kit = createKit(SHOWN_CAR.kit, { light: !!STUDIO.light });
+  const laptop = createLaptop({ car: SHOWN_CAR, light: !!STUDIO.light });
   const sample = createSample(sampleUi);
   laptop.group.position.copy(DESK);
   laptop.group.rotation.y = Math.PI;               // the screen faces -z, away from the car
@@ -346,7 +349,9 @@ export function createStage({ canvas, sampleUi }) {
     uniforms.uCarInv.value.copy(c.root.matrixWorld).invert();
     if (c.trial) {
       const box = new THREE.Box3().setFromObject(c.paint);
-      kit.fitTo(box);                               // (before the app's highlights take the shapes)
+      // the Urus kit on this car (it has none of its own, or its own failed to load): stretched to its paint, before
+      // the app's highlights take the shapes
+      if (kit.base === URUS_KIT) kit.fitTo(box);
       // our baked shadow is the Urus's, on a ground that is not quite white (it shows as a grey slab on a pale floor):
       // a soft oval that fades to nothing, sized to this car
       carShadow.material.uniforms.map.value = soft;
@@ -366,7 +371,7 @@ export function createStage({ canvas, sampleUi }) {
       if (c.sfModel) c.sfToWorld = c.sfModel.matrixWorld.clone();
     }
     // the footer credits the car on show (a trial car's licence asks for its own credit wherever it is shown)
-    const shown = c.trial ? new URLSearchParams(location.search).get('car') : 'urus';
+    const shown = c.trial ? CAR_KEY : 'urus';
     document.querySelectorAll('.sd-foot__credit[data-car]').forEach((p) => { p.hidden = p.dataset.car !== shown; });
 
     scene.add(plotter.scene);

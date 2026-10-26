@@ -1,4 +1,4 @@
-"""blender -b ppf-panels.blend --python export_patterns_web.py -- <out dir>
+"""blender -b ppf-panels.blend --python export_patterns_web.py -- <out dir> [<nest preview png>]
 
 The car's main PPF pieces as flat cutting patterns, nested on one run of 1.52 m film (the v3 page cuts them all at
 once, then the pieces lift off, grow to full size and fly onto the car):
@@ -19,7 +19,10 @@ import bmesh
 import bpy
 from mathutils import Matrix, Vector
 
-out_dir = sys.argv[sys.argv.index("--") + 1]
+args = sys.argv[sys.argv.index("--") + 1:]
+out_dir = args[0]
+# (another car's kit, e.g. make_kit_911.py's, keeps its preview apart from the Urus's)
+preview_path = args[1] if len(args) > 1 else os.path.join(out_dir, "..", "..", "blender", "ref", "nest-preview.png")
 os.makedirs(out_dir, exist_ok=True)
 sc = bpy.context.scene
 sc.frame_set(1)
@@ -290,7 +293,7 @@ try:
                     if 0 <= r_ < H_PX and 0 <= c_ < W_PX:
                         px[r_, c_] = (0.96, 0.7, 0.14, 1.0)
     img.pixels.foreach_set(px.ravel())
-    img.filepath_raw = os.path.join(out_dir, "..", "..", "blender", "ref", "nest-preview.png")
+    img.filepath_raw = preview_path
     img.file_format = "PNG"
     img.save()
     print("WROTE nest preview", img.filepath_raw)

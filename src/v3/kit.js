@@ -8,6 +8,21 @@ const TABLE_U = 0.23;          // where it lies flat on the cutting table
 const CARRIAGE_REST_Z = -1.374;
 const smooth = (t) => t * t * (3 - 2 * t);
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
+export const URUS_KIT = 'v3/';           // our Urus's kit; a trial car may bring its own (car.js TRIAL_CARS kit)
+
+/**
+ * Pixels from a fragment to the piece's cut edge, for a light kit's panels (faceCorners: aBary where in its face a
+ * corner is, aCut which of the face's sides lie on the edge, aTip which of its corners do). The corners close the gaps
+ * that the faces meeting the edge at a corner only would leave in the line.
+ */
+export const CUT_EDGE_GLSL = /* glsl */ `
+float cutEdgePx(vec3 bary, vec3 cut, vec3 tip) {
+  vec3 w = max(fwidth(bary), vec3(1e-6));
+  vec3 side = bary / w + (1.0 - cut) * 1e4;
+  vec3 corner = (1.0 - bary) / w + (1.0 - tip) * 1e4;
+  return min(min(min(side.x, side.y), side.z), min(min(corner.x, corner.y), corner.z));
+}
+`;
 
 /**
  * The car's PPF kit, from the roll to the car (blender/scripts/export_patterns_web.py):
@@ -18,8 +33,11 @@ const clamp01 = (t) => Math.min(1, Math.max(0, t));
  * Each panel mesh carries one morph target: where its vertices lie flat on the table (world space), so weight 1 = the
  * pattern on the table, 0 = the panel shape, and the node's position moves it (0 on the table).
  * state: cut 0→1, push 0→1 (feed out), hole 0/1, lift 0→1, fly 0→1, merge 0→1, explode (hover distance scale)
+ * base: the folder of the kit's patterns.json + patterns.glb. A kit that fails to load gives way to the Urus's (with a
+ * warning; kit.base says which one came, so the car can stretch it to its own shape: fitTo).
+ * light: the film made for a light studio (a pale room shows none of the sheen it has on the dark one)
  */
-export function createKit() {
+export function createKit(base = URUS_KIT, { light = false } = {}) {
   const state = { show: 0, cut: 0, push: 0, lift: 0, fly: 0, merge: 0, alpha: 1, edge: 0 };
   const rig = new THREE.Group();          // film web + knife line (on the plotter)
   const pieces = new THREE.Group();       // the flying panels
@@ -31,11 +49,23 @@ export function createKit() {
   const panels = [];
   const filmU = { uAlpha: { value: 0.16 } };
 
+  let from = base;
+  const loadKit = (dir) => Promise.all([
+    fetch(asset(`${dir}patterns.json`)).then((r) => {
+      if (!r.ok) throw new Error(`${r.status} ${r.url}`);
+      return r.json();
+    }),
+    gltfLoader.loadAsync(asset(`${dir}patterns.glb`)),
+  ]);
   const ready = Promise.all([
     fetch(asset('v3/plotter-path.json')).then((r) => r.json()),
-    fetch(asset('v3/patterns.json')).then((r) => r.json()),
-    gltfLoader.loadAsync(asset('v3/patterns.glb')),
-  ]).then(([p, pat, glb]) => {
+    loadKit(base).catch((err) => {
+      if (base === URUS_KIT) throw err;
+      console.warn(`kit: ${base} unavailable, cutting the Urus kit instead`, err);
+      from = URUS_KIT;
+      return loadKit(URUS_KIT);
+    }),
+  ]).then(([p, [pat, glb]]) => {
     path = p;
     layout = pat;
     buildPath();
@@ -283,6 +313,7 @@ export function createKit() {
           gl_FragColor.rgb += vec3(1.0, 0.97, 0.9) * edge * (0.35 + 0.9 * uEdge);
           gl_FragColor.a = clamp(0.05 + fr * 0.42 + edge * (0.35 + 0.5 * uEdge), 0.0, 1.0) * uAlpha;`);
     };
+    if (light) lightFilm(mat, u);
     pieces.userData.uniforms = u;
 
     // where every vertex lies on the table once the layout is fed out (strip coords → world at Fend)
@@ -324,6 +355,7 @@ export function createKit() {
         edge[key % 1e6] = 1;
       });
       geo.setAttribute('aEdge', new THREE.BufferAttribute(edge, 1));
+      if (light) faceCorners(mesh, (a, b) => count.get(a < b ? a * 1e6 + b : b * 1e6 + a) === 1, edge);
       mesh.updateMorphTargets();
       mesh.morphTargetInfluences[0] = 1;
       mesh.material = mat;
@@ -347,6 +379,59 @@ export function createKit() {
     const zs = panels.map((p) => p.rest.z);
     const z0 = Math.min(...zs), z1 = Math.max(...zs);
     panels.forEach((p) => { p.land = ((p.rest.z - z0) / (z1 - z0)) * 0.45; });
+  }
+
+  /**
+   * The film on a light studio, where its sheen and a white edge vanish against the pale room: a faint cool tint with
+   * a touch more body, and the cut edge a fine line in the gold the knife drew it in, a soft glow just inside it. The
+   * line keeps one width on screen however big the faces are (CUT_EDGE_GLSL; lit by aEdge instead, a small piece,
+   * all edge vertices, went solid gold).
+   */
+  function lightFilm(mat, u) {
+    mat.color.set(0xd2dde8);
+    u.uGold = { value: new THREE.Color(GOLD) };
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, u);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec3 aBary; attribute vec3 aCut; attribute vec3 aTip;\nvarying vec3 vBary; varying vec3 vCut; varying vec3 vTip;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBary = aBary; vCut = aCut; vTip = aTip;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>
+          uniform float uAlpha; uniform float uEdge; uniform vec3 uGold; varying vec3 vBary; varying vec3 vCut; varying vec3 vTip;
+          ${CUT_EDGE_GLSL}`)
+        .replace('#include <opaque_fragment>', `#include <opaque_fragment>
+          float fr = pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 3.0);
+          float d = cutEdgePx(vBary, vCut, vTip);
+          float gold = max(1.0 - smoothstep(1.0, 2.2, d), exp(-d * 0.3) * 0.3) * (0.6 + 0.4 * uEdge);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, uGold, gold);
+          gl_FragColor.a = clamp(max(0.07 + fr * 0.32, gold), 0.0, 1.0) * uAlpha;`);
+    };
+  }
+
+  /**
+   * (light kit) the faces stop sharing corners, each corner gets aBary, and its face's aCut and aTip (CUT_EDGE_GLSL;
+   * onEdge(a, b): a side on the cut edge, edge[v]: a corner on it)
+   */
+  function faceCorners(mesh, onEdge, edge) {
+    const index = mesh.geometry.index.array, tris = index.length / 3;
+    const bary = new Float32Array(tris * 9), cut = new Float32Array(tris * 9), tip = new Float32Array(tris * 9);
+    for (let t = 0; t < tris; t++) {
+      const v = [index[t * 3], index[t * 3 + 1], index[t * 3 + 2]];
+      const side = [onEdge(v[1], v[2]), onEdge(v[2], v[0]), onEdge(v[0], v[1])];      // the side across from each corner
+      for (let k = 0; k < 3; k++) {
+        bary[t * 9 + k * 4] = 1;
+        for (let j = 0; j < 3; j++) {
+          cut[t * 9 + k * 3 + j] = side[j] ? 1 : 0;
+          tip[t * 9 + k * 3 + j] = edge[v[j]];
+        }
+      }
+    }
+    const geo = mesh.geometry.toNonIndexed();
+    geo.setAttribute('aBary', new THREE.BufferAttribute(bary, 3));
+    geo.setAttribute('aCut', new THREE.BufferAttribute(cut, 3));
+    geo.setAttribute('aTip', new THREE.BufferAttribute(tip, 3));
+    mesh.geometry.dispose();
+    mesh.geometry = geo;
   }
 
   // ---------------------------------------------------------------- per frame
@@ -429,8 +514,9 @@ export function createKit() {
 
   /**
    * Stretch the pieces' shapes on the car (not their flat layout on the table) to another car's paint box, so they
-   * land on its body, roof and bumpers (for a trial car; their outlines stay our Urus's). Across and along the car
-   * they scale about its centre, upwards about the floor; the flat layout is a delta from the shape, so it is put back.
+   * land on its body, roof and bumpers (for a trial car with no kit of its own; their outlines stay our Urus's).
+   * Across and along the car they scale about its centre, upwards about the floor; the flat layout is a delta from the
+   * shape, so it is put back.
    */
   const fitTo = (box) => {
     const kb = new THREE.Box3();
@@ -459,5 +545,8 @@ export function createKit() {
     });
   };
 
-  return { state, ready, rig, pieces, update, layoutCentre, fitTo, get layout() { return layout; }, get panels() { return panels; } };
+  return {
+    state, ready, rig, pieces, update, layoutCentre, fitTo,
+    get layout() { return layout; }, get panels() { return panels; }, get base() { return from; },
+  };
 }

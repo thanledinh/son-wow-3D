@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { isTouch } from '../studio.js';
+import { CUT_EDGE_GLSL } from './kit.js';
 
 // The app on the laptop screen: a canvas UI (16:10) whose 3D viewport shows a live render of the car.
 const UI_W = 1440, UI_H = 900;
@@ -11,12 +12,26 @@ const GOLD = '#f4b223';
 const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 
-const PANELS = [
-  ['Hood', 'Hood'], ['FrontBumper', 'Front bumper'], ['Fender_L', 'Fender L'], ['Fender_R', 'Fender R'],
-  ['Door_FL', 'Door FL'], ['Door_FR', 'Door FR'], ['Door_RL', 'Door RL'], ['Door_RR', 'Door RR'],
-  ['Quarter_L', 'Quarter L'], ['Quarter_R', 'Quarter R'], ['Roof', 'Roof'], ['Tailgate', 'Tailgate'],
-  ['RearBumper', 'Rear bumper'],
+// the outliner lists the kit's panels round the car from the nose (a panel not named here comes last, in the kit's
+// order), each labelled from its name: Pat_FrontBumper → 'Front bumper', Pat_Door_FL → 'Door FL' (or as named here)
+const PANEL_ORDER = [
+  'Hood', 'FrontBumper', 'Fender_L', 'Fender_R', 'Windscreen', 'Door_FL', 'Door_FR', 'Door_RL', 'Door_RR', 'Door_L',
+  'Door_R', 'Quarter_L', 'Quarter_R', 'Roof', 'RearDeck', 'Tailgate', 'EngineLid', 'RearBumper',
 ];
+const PANEL_LABELS = { Windscreen: 'Windscreen frame' };
+const panelRows = (panels) => panels
+  .map((p, i) => {
+    const n = p.name.replace(/^Pat_/, '');
+    const at = PANEL_ORDER.indexOf(n);
+    return { n, i, rank: at < 0 ? PANEL_ORDER.length : at };
+  })
+  .sort((a, b) => a.rank - b.rank || a.i - b.i)
+  .map(({ n }) => {
+    if (PANEL_LABELS[n]) return PANEL_LABELS[n];
+    const [part, ...side] = n.split('_');
+    const words = part.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase();
+    return [words[0].toUpperCase() + words.slice(1), ...side].join(' ');
+  });
 
 /**
  * A laptop on a standing desk next to the plotter. Its screen runs "PPF Studio": at first the whole screen is the
@@ -24,8 +39,9 @@ const PANELS = [
  * panels are picked out, flattened into the nested kit and sent to the cutter.
  * state: on (screen brightness), ui 0→1 (chrome in), sel 0→1 (panels picked), nest 0→1 (kit view),
  * send 0→1 (upload), cursor 0→2 (viewport → "Extract" → "Send"), click 0→1 (press flash)
+ * car: { title, short }, its name in the top bar and the outliner; light: a light studio (the viewport is near white)
  */
-export function createLaptop() {
+export function createLaptop({ car, light = false }) {
   const state = { alpha: 1, on: 1, ui: 0, sel: 0, nest: 0, send: 0, cursor: 0, cursorOn: 0, click: 0 };
   const group = new THREE.Group();
   const fading = [];        // every material of the desk and the laptop, so they can fade away once the kit is sent
@@ -174,10 +190,15 @@ export function createLaptop() {
   mark.layers.set(1);
   mark.visible = false;
 
-  /** add the panel highlights: one mesh per kit panel, sharing its geometry (3D shape) */
+  /**
+   * add the panel highlights: one mesh per kit panel, sharing its geometry (3D shape). On the dark studio, gold light
+   * added to the paint. On a light one added light has no room left to show, and gold laid over a yellow car hardly
+   * shows either: the paint is tinted gold (multiplied, so a white floor turns gold and a yellow car amber), each panel
+   * outlined along its cut edge as the cutter will draw it
+   */
   const addHighlights = (panels) => {
     panels.forEach((p, i) => {
-      const m = new THREE.Mesh(p.mesh.geometry, new THREE.MeshBasicMaterial({
+      const m = new THREE.Mesh(p.mesh.geometry, light ? outlined() : new THREE.MeshBasicMaterial({
         color: 0xf4b223, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
         forceSinglePass: true,          // (added light: the order of the faces makes no difference)
       }));
@@ -189,9 +210,30 @@ export function createLaptop() {
       highlights.add(m);
     });
   };
+  const HIGHLIGHT = light ? 1 : 0.42;     // their opacity once picked
+  /**
+   * (light studio) a highlight that tints what is under it: premultiplied, multiply blending leaves it × mix(1, gold,
+   * alpha). The outline from the light kit's corners (kit.js CUT_EDGE_GLSL)
+   */
+  const outlined = () => {
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xf4b223, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,
+      blending: THREE.MultiplyBlending, premultipliedAlpha: true,
+    });
+    mat.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute vec3 aBary; attribute vec3 aCut; attribute vec3 aTip;\nvarying vec3 vBary; varying vec3 vCut; varying vec3 vTip;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBary = aBary; vCut = aCut; vTip = aTip;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>\nvarying vec3 vBary; varying vec3 vCut; varying vec3 vTip;\n${CUT_EDGE_GLSL}`)
+        .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= max(0.35, 1.0 - smoothstep(1.2, 2.4, cutEdgePx(vBary, vCut, vTip)));');
+    };
+    return mat;
+  };
 
   // ---------------------------------------------------------------- UI drawing
   let kit = null;                  // patterns.json, for the nested-kit view
+  let rows = [];                   // its panels' labels in the outliner
   let dirty = true, last = '';
   const font = (w, px) => `${w} ${px}px "Be Vietnam Pro", system-ui, sans-serif`;
   const mono = (px) => `500 ${px}px "JetBrains Mono", ui-monospace, monospace`;
@@ -237,7 +279,7 @@ export function createLaptop() {
       });
       g.fillStyle = '#8d939b';
       g.textAlign = 'right';
-      g.fillText('Storedetailing PPF Studio  ·  Lamborghini Urus 2018', UI_W - 14, 22);
+      g.fillText(`Storedetailing PPF Studio  ·  ${car.title}`, UI_W - 14, 22);
       g.textAlign = 'left';
       g.restore();
 
@@ -270,7 +312,7 @@ export function createLaptop() {
       g.font = font(500, 12.5);
       let y = TOP + 50;
       g.fillStyle = '#c8cbd0';
-      g.fillText('▾  Lamborghini Urus', x0 + 14, y);
+      g.fillText(`▾  ${car.short}`, x0 + 14, y);
       y += 22;
       g.fillStyle = '#8d939b';
       g.fillText('     Body · Glass · Wheels', x0 + 14, y);
@@ -278,9 +320,10 @@ export function createLaptop() {
       g.fillStyle = '#c8cbd0';
       g.fillText(`▾  PPF Kit  (${kit ? kit.pieces.length : 14})`, x0 + 14, y);
       y += 8;
-      PANELS.forEach(([, label], i) => {
-        y += 21;
-        const on = clamp01(s.sel * 1.35 - (i / PANELS.length) * 0.35) > 0.5;
+      const pitch = Math.min(21, 300 / Math.max(1, rows.length));     // (a long kit closes up above the Film panel)
+      rows.forEach((label, i) => {
+        y += pitch;
+        const on = clamp01(s.sel * 1.35 - (i / rows.length) * 0.35) > 0.5;
         if (on) {
           g.fillStyle = 'rgba(244, 178, 35, 0.16)';
           g.fillRect(x0 + 6, y - 15, RIGHT - 12, 20);
@@ -636,7 +679,7 @@ export function createLaptop() {
     grid.material.opacity = 0.32 * ease(state.ui);
     grid.visible = grid.material.opacity > 0.01;
     highlights.children.forEach((m) => {
-      m.material.opacity = 0.42 * clamp01(state.sel * 1.35 - m.userData.order * 0.35) * (1 - clamp01(state.nest * 2));
+      m.material.opacity = HIGHLIGHT * clamp01(state.sel * 1.35 - m.userData.order * 0.35) * (1 - clamp01(state.nest * 2));
       m.visible = m.material.opacity > 0.005;
     });
     const fog = scene.fog;
@@ -689,7 +732,7 @@ export function createLaptop() {
     group, state, screen, grid, highlights, mark, view, update, renderView, screenFrame, addHighlights, setViewSize,
     target: rt,
     markReady: Promise.all([markWide.ready, markTall.ready]),
-    setKit: (k) => { kit = k; dirty = true; },
+    setKit: (k) => { kit = k; rows = panelRows(k.panels); dirty = true; },
     refresh: () => { dirty = true; },
     setLinearTone: (on, exposure = 1) => {
       screenU.uLinear.value = on ? 1 : 0;

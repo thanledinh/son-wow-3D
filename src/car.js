@@ -423,8 +423,11 @@ function setupWheels(root) {
   };
 }
 
+// the car on show: the Porsche 911 since 2026-10-26 (?car=urus or another key still loads the others)
+export const CAR_KEY = new URLSearchParams(location.search).get('car') ?? 'porsche911';
+
 export async function loadCar(uniforms, { exact = false } = {}) {
-  const trial = TRIAL_CARS[new URLSearchParams(location.search).get('car')];
+  const trial = TRIAL_CARS[CAR_KEY];
   if (trial) return loadTrial(trial, uniforms, exact);
   const gltf = await gltfLoader.loadAsync(asset('models/car.glb'));
   const root = gltf.scene;
@@ -456,6 +459,8 @@ export async function loadCar(uniforms, { exact = false } = {}) {
  * length, centred, wheels on the floor. The meshes that carry its body paint become one Paint mesh in our paint
  * material (the film's gloss, sweep and swirl marks live there; one mesh also serves the bonnet raycast), and
  * dress() sees to the rest. ownColor: the paint keeps the model's own colour (stage.js leaves it unless ?paint=).
+ * kit: the folder of its own PPF kit (patterns.json + patterns.glb in its car space; without one, the Urus kit is
+ * stretched to it). title, short: its name in the laptop's app (top bar, outliner); without them, the Urus's.
  * (three drops the dots from glTF node names: Plane.077 → Plane077.)
  */
 const TRIAL_CARS = {
@@ -476,6 +481,7 @@ const TRIAL_CARS = {
   // that refracts (transmission: an extra pass every frame) becomes ours
   porsche: {
     url: 'models/porsche/scene.gltf', length: 4.52, ownColor: true, ownFinish: true,
+    title: 'Porsche 911 Carrera S Cabriolet', short: 'Porsche 911',
     isPaint: (o) => o.material?.name === 'SMI_1228010001_002',
     dress(o, m) {
       if (o.material.transmission > 0) o.material = m.glass;
@@ -494,6 +500,7 @@ const TRIAL_CARS = {
   // 40% black glass included; its specular 1 is an F0 of 8% (ior 1.79 in three), and two parts at opacity 0 never show
   porsche911: {
     url: 'models/porsche911/scene.gltf', length: 4.52, ownColor: true, viewerColor: 0xf4e600,
+    kit: 'v3/porsche911/', title: 'Porsche 911 Targa 4S', short: 'Porsche 911',
     isPaint: (o) => o.material?.name === 'PAINT_COLOR_4',
     dress(o, m) {
       const n = o.material.name;
@@ -508,6 +515,16 @@ const TRIAL_CARS = {
     },
   },
 };
+
+/**
+ * The car on show (?car=…), known before it loads: its names in the laptop's app (title in the top bar, short in the
+ * outliner) and kit, the folder of its own PPF kit (undefined: the Urus kit).
+ */
+export const SHOWN_CAR = (() => {
+  const urus = { title: 'Lamborghini Urus 2018', short: 'Lamborghini Urus', kit: undefined };
+  const trial = TRIAL_CARS[CAR_KEY];
+  return trial ? { title: trial.title ?? urus.title, short: trial.short ?? urus.short, kit: trial.kit } : urus;
+})();
 
 async function loadTrial(trial, uniforms, exact) {
   const gltf = await gltfLoader.loadAsync(asset(trial.url));
