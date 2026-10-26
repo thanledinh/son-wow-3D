@@ -254,7 +254,7 @@ if (!isTouch) {
         .from('.intro .eyebrow', { opacity: 0, y: 12, duration: 0.8 }, '-=0.5')
         .from('.intro__title .line > span', { yPercent: 110, duration: 1.3, stagger: 0.1, ease: 'expo.out' }, '-=0.6')
         // (clearProps: an inline opacity left behind would keep the scroll hint from ever hiding)
-        .from(['.intro__sub', '.hud', '.film__scroll'], { opacity: 0, duration: 1, clearProps: 'opacity' }, '-=0.8')
+        .from(['.hud', '.film__scroll'], { opacity: 0, duration: 1, clearProps: 'opacity' }, '-=0.8')
         .add(() => { if (new URLSearchParams(location.search).has('play')) startPlay(); });
     });
 }

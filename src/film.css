@@ -17,11 +17,9 @@
   transition: opacity 0.6s var(--ease), transform 0.8s var(--ease);
 }
 .intro.is-off { opacity: 0; transform: translateY(calc(-50% - 30px)); }
-.intro__title { font-size: clamp(44px, 5.4vw, 92px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 700; margin: 0 0 22px; }
+.intro__title { font-size: clamp(44px, 5.4vw, 92px); line-height: 0.98; letter-spacing: -0.045em; font-weight: 700; margin: 0; }
 .intro__title .line { display: block; overflow: hidden; padding-bottom: 0.06em; white-space: nowrap; }
 .intro__title .line > span { display: inline-block; }
-.intro__title em { font-style: normal; background: linear-gradient(100deg, #ffe6a8 0%, var(--accent) 38%, #b97c0c 68%, #ffd27a 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.intro__sub { margin: 0; max-width: 40ch; color: var(--ink-2); font-size: clamp(15px, 1.1vw, 17px); line-height: 1.6; }
 
 .film__tag {
   position: absolute; right: var(--gutter); bottom: 124px; margin: 0;
@@ -94,7 +92,6 @@
   font-size: 12px; color: var(--muted); transition: opacity 0.5s;
 }
 .film__scroll.is-off { opacity: 0; }
-@media (min-width: 901px) { .film__scroll { display: none; } }   /* the opening line already says it */
 .film__scroll i { width: 1px; height: 40px; background: linear-gradient(var(--accent), transparent); animation: drip 2.2s var(--ease) infinite; transform-origin: top; }
 @keyframes drip { 0% { transform: scaleY(0); } 50% { transform: scaleY(1); transform-origin: top; } 51% { transform-origin: bottom; } 100% { transform: scaleY(0); transform-origin: bottom; } }
 
@@ -102,7 +99,6 @@
 @media (max-width: 900px) {
   .intro { top: 92px; transform: none; width: auto; right: var(--gutter); }
   .intro.is-off { transform: translateY(-20px); }
-  .intro__sub { display: none; }
   .film__tag { bottom: auto; top: 84px; }
   .hud { bottom: 18px; gap: 12px; }
   .hud__play span { display: none; }

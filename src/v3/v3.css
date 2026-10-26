@@ -24,7 +24,7 @@
 .vcap__eyebrow .mono { display: inline-flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.04em; color: var(--accent); }
 .vcap__eyebrow .mono::after { content: ""; width: 28px; height: 1px; background: rgba(255, 255, 255, 0.3); }
 .vcap__title { margin: 0; font-size: clamp(28px, 2.7vw, 46px); line-height: 1.06; letter-spacing: -0.035em; font-weight: 700; }
-.vcap__title em { font-style: normal; color: var(--accent); }
+.vcap__title em { font-style: normal; color: var(--muted); }
 .vcap--xl .vcap__title { font-size: clamp(32px, 3.2vw, 56px); }
 .vcap__sub { margin: 16px 0 0; max-width: 34ch; font-size: clamp(14.5px, 1.05vw, 16px); line-height: 1.6; color: var(--ink-2); }
 
