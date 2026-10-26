@@ -154,6 +154,18 @@ export function createLaptop() {
   grid.layers.set(1);
   const highlights = new THREE.Group();     // gold overlays on the panels, only in the app's viewport
 
+  // the shop's name, big and faint across the back of the studio in the opening shot: square to the app camera (it
+  // reads flat, like lettering on the studio wall), a few metres behind the turning car, which hides its foot. It goes
+  // as the camera pulls back to the laptop. One line beside a headline in a left column; two stacked lines under a
+  // headline on top, where the frame is narrow (placed in renderView).
+  const markWide = wordmark(['STOREDETAILING'], 2048, 256);
+  const markTall = wordmark(['STORE', 'DETAILING'], 2048, 768);
+  const mark = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+    map: markWide.texture, color: 0x3d4148, transparent: true, depthWrite: false, fog: false,
+  }));
+  mark.layers.set(1);
+  mark.visible = false;
+
   /** add the panel highlights: one mesh per kit panel, sharing its geometry (3D shape) */
   const addHighlights = (panels) => {
     panels.forEach((p, i) => {
@@ -498,6 +510,10 @@ export function createLaptop() {
   const tmp = new THREE.Vector3();
   const VIEW_FOV = 26;
   const FULL_W = 1600, FULL_H = 1000;           // the app viewport's whole frame, in the units of its view offsets
+  const AIM = new THREE.Vector3(0, 0.62, 0);    // where the viewport camera looks: the car's middle
+  const MARK_BACK = 4;                          // the name's distance behind that (m): clear of the car at any turn
+  const MARK_ROOF = 1.39;                       // the car's roofline seen against the name: its height above the axis (m)
+  const markDir = new THREE.Vector3();
   const inv = new THREE.Matrix4(), ro = new THREE.Vector3(), rd = new THREE.Vector3(), pc = new THREE.Vector3(), pn = new THREE.Vector3();
   const seen = new THREE.Vector4(), part = new THREE.Vector4(), px = new THREE.Vector2();
   const pa = new THREE.Vector2(), pb = new THREE.Vector2(), pe = new THREE.Vector2(), pf = new THREE.Vector2();
@@ -568,7 +584,7 @@ export function createLaptop() {
     const az = 0.9 + time * 0.32;
     const el = 0.16, dist = 8.6;
     view.position.set(Math.sin(az) * Math.cos(el) * dist, 0.75 + Math.sin(el) * dist, Math.cos(az) * Math.cos(el) * dist);
-    view.lookAt(0, 0.62, 0);
+    view.lookAt(AIM);
     view.updateMatrixWorld();
     // the opening shot: on a wide page the car sits right of centre, clear of the headline. A tall page (a phone) sees
     // only a slice of the 16:10 screen, so the lens opens until the turning car fits that slice, and closes again as
@@ -587,6 +603,26 @@ export function createLaptop() {
     const offX = copyLeft ? -205 * (1 + squeeze * 1.8) * away : 0;
     const offY = -150 * lower * away;
     view.setViewOffset(FULL_W, FULL_H, offX + x0 * FULL_W, offY + (1 - y1) * FULL_H, (x1 - x0) * FULL_W, (y1 - y0) * FULL_H);
+    // the name: MARK_BACK beyond the car's centre, square to the camera. Across the page's share of the frame (clear
+    // of a left-column headline), so its size goes with the frame; its height goes with the car, the roofline hiding
+    // the foot of its last line whatever the lens
+    mark.visible = hook > 0.004;
+    if (mark.visible) {
+      const m = copyLeft ? markWide : markTall;
+      mark.material.map = m.texture;
+      mark.material.opacity = hook;
+      const d = dist + MARK_BACK;
+      markDir.subVectors(AIM, view.position).normalize();
+      mark.position.copy(view.position).addScaledVector(markDir, d);
+      mark.quaternion.copy(view.quaternion);
+      const across = (x1 - x0) * RT_ASPECT * 2 * d * Math.tan((view.fov * Math.PI) / 360);
+      const c = (FULL_W / 2 - offX - x0 * FULL_W) / ((x1 - x0) * FULL_W);     // the car's centre across the page
+      const lo = copyLeft ? 0.24 : 0.03, hi = copyLeft ? 0.985 : 0.97;
+      const w = Math.min(copyLeft ? 0.72 : 0.92, hi - lo) * across, h = w / m.aspect;
+      mark.scale.set(w, h, 1);
+      mark.translateX(((lo + hi) / 2 - c) * across);
+      mark.translateY(MARK_ROOF + m.foot * h);
+    }
     grid.material.opacity = 0.32 * ease(state.ui);
     grid.visible = grid.material.opacity > 0.01;
     highlights.children.forEach((m) => {
@@ -638,12 +674,53 @@ export function createLaptop() {
   };
 
   return {
-    group, state, screen, grid, highlights, view, update, renderView, screenFrame, addHighlights, setViewSize,
+    group, state, screen, grid, highlights, mark, view, update, renderView, screenFrame, addHighlights, setViewSize,
     target: rt,
+    markReady: Promise.all([markWide.ready, markTall.ready]),
     setKit: (k) => { kit = k; dirty = true; },
     refresh: () => { dirty = true; },
     tmp,
   };
+}
+
+/**
+ * Lines of heavy capitals, centred and fitted into a canvas of the given size (so the texture never changes size),
+ * fading from the top of the block to its foot. Drawn again once the page's font is in; ready resolves after that.
+ * foot: where a third of the way up the last line sits, below the middle, as a fraction of the height.
+ */
+function wordmark(lines, w, h) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const texture = new THREE.CanvasTexture(c);
+  texture.anisotropy = 4;
+  const mk = { texture, aspect: w / h, foot: 0, ready: null };
+  const face = (px) => `800 ${px}px "Be Vietnam Pro", system-ui, sans-serif`;
+  const paint = () => {
+    const g = c.getContext('2d');
+    g.clearRect(0, 0, w, h);
+    g.font = face(100);
+    const widest = Math.max(...lines.map((l) => g.measureText(l).width));
+    const cap100 = g.measureText('E').actualBoundingBoxAscent;
+    const pad = 0.02 * w, step = 1.24;                 // line pitch, in cap heights
+    const px = 100 * Math.min((w - 2 * pad) / widest, (h - 2 * pad) / (cap100 * (1 + step * (lines.length - 1))));
+    g.font = face(px);
+    const cap = (cap100 * px) / 100, block = cap * (1 + step * (lines.length - 1));
+    const top = (h - block) / 2;
+    const fill = g.createLinearGradient(0, top, 0, top + block);
+    fill.addColorStop(0, 'rgba(255,255,255,1)');
+    fill.addColorStop(1, 'rgba(255,255,255,0.22)');
+    g.fillStyle = fill;
+    g.textAlign = 'center';
+    g.textBaseline = 'alphabetic';
+    lines.forEach((l, i) => g.fillText(l, w / 2, top + cap + i * cap * step));
+    mk.foot = (top + block - 0.35 * cap) / h - 0.5;
+    texture.needsUpdate = true;
+  };
+  paint();
+  mk.ready = (document.fonts ? document.fonts.ready.then(() => document.fonts.load(face(100))) : Promise.resolve())
+    .then(paint, paint);
+  return mk;
 }
 
 function keyboardTexture() {

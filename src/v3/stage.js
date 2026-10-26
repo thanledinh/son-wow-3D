@@ -184,7 +184,7 @@ export function createStage({ canvas, sampleUi }) {
   const sample = createSample(sampleUi);
   laptop.group.position.copy(DESK);
   laptop.group.rotation.y = Math.PI;               // the screen faces -z, away from the car
-  scene.add(laptop.group, laptop.grid, laptop.highlights);
+  scene.add(laptop.group, laptop.grid, laptop.highlights, laptop.mark);
   const plotterRig = { carriage: null, carriageBase: new THREE.Vector3(), roll: null, rollBase: new THREE.Quaternion(), rollAxis: new THREE.Vector3(0, 0, 1) };
   let cable = null, car = null, tl = null, builtFor = '';
 
@@ -201,6 +201,7 @@ export function createStage({ canvas, sampleUi }) {
     gltfLoader.loadAsync(asset('models/plotter.glb')),
     kit.ready,
     envReady,
+    laptop.markReady,
   ]).then(async ([c, plotter]) => {
     car = c;
     c.paint.material.color.set(0xf2bf00);           // under Neutral tone mapping: the golden Giallo of the shop's reference shot
