@@ -653,7 +653,10 @@ export function createStage({ canvas, sampleUi }) {
     const layersShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9).setLength(builtFor === 'tall' ? 7.5 : 9)), CAR_T, 34);
     layersPose = layersShot;
     lay.key = '';
-    const outro = shot(v3(-6.4, 1.15, -8.3), v3(0, 0.78, 0.2), 34);
+    // the end: three-quarter on from a little above (about 10°), big in the band between the card's words and buttons
+    const outroAt = v3(0, 0.8, 0.2), outroEl = 0.17;
+    const outroDir = v3(-6.4, 0, -8.5).setLength(Math.cos(outroEl)).setY(Math.sin(outroEl));
+    const outro = shot(outroAt.clone().addScaledVector(outroDir, builtFor === 'tall' ? 7.2 : 8.5), outroAt, 34);
 
     const K = kit.state, L = laptop.state, C = cable.state, SP = sample.state;
     Object.assign(SP, { appear: 0, explode: 0, cycle: 0 });
