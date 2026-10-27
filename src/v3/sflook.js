@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
 
 /**
- * Trial (?studio=sketchfab): a car as Sketchfab's viewer shows it, rebuilt from the model's public viewer settings
+ * The page's look: the car as Sketchfab's viewer shows it, rebuilt from the model's public viewer settings
  * (sketchfab.com/i/models/{uid}/options) and the formulas the public viewer works by, written here as our own code.
  * The values are those of the 911 (uid 597734ea…), whose model units are 0.0462 m in our world.
  * - shading: Sketchfab's PBR as three's, less three's extras (patchShading)
@@ -22,7 +22,9 @@ export const SF = {
   lights: [[0.8375, 0.3299, 0.4356], [-0.3919, 0.9156, 0.09], [-0.9083, 0.4184, 0]],
   // the environment's light: colour normalised, intensity pi × lightIntensity 5 × exposure 0.6 / brightness 1.05
   sun: { from: [0.712, 0.498, 0.495], color: [0.4914, 0.5607, 0.6665], intensity: Math.PI * 2.857 },
-  ao: { radius: 0.256, bias: 0.0256, intensity: 0.2 },
+  // (bias: Sketchfab's 0.0256 m drew the facets of a gently curved door or bonnet as faint stripes, which its temporal
+  // AA averages away and nothing here does; twice that keeps the occlusion in gaps and arches without them)
+  ao: { radius: 0.256, bias: 0.05, intensity: 0.2 },
   tone: { exposure: 1, brightness: -0.25, contrast: 0, saturation: 1.4 },
   balance: { low: [0.075, 0.075, 0.1], mid: [0.075, 0.075, 0.1], high: [0, 0, 0] },
   vignette: [0.25, 0.725],

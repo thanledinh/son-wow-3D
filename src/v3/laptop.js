@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { isTouch } from '../studio.js';
-import { CUT_EDGE_GLSL } from './kit.js';
+import { createSfAO } from './sflook.js';
 
 // The app on the laptop screen: a canvas UI (16:10) whose 3D viewport shows a live render of the car.
 const UI_W = 1440, UI_H = 900;
@@ -13,10 +13,10 @@ const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 
 // the outliner lists the kit's panels round the car from the nose (a panel not named here comes last, in the kit's
-// order), each labelled from its name: Pat_FrontBumper → 'Front bumper', Pat_Door_FL → 'Door FL' (or as named here)
+// order), each labelled from its name: Pat_FrontBumper → 'Front bumper', Pat_Door_L → 'Door L' (or as named here)
 const PANEL_ORDER = [
-  'Hood', 'FrontBumper', 'Fender_L', 'Fender_R', 'Windscreen', 'Door_FL', 'Door_FR', 'Door_RL', 'Door_RR', 'Door_L',
-  'Door_R', 'Quarter_L', 'Quarter_R', 'Roof', 'RearDeck', 'Tailgate', 'EngineLid', 'RearBumper',
+  'Hood', 'FrontBumper', 'Fender_L', 'Fender_R', 'Windscreen', 'Door_L', 'Door_R', 'Quarter_L', 'Quarter_R',
+  'RearDeck', 'EngineLid', 'RearBumper',
 ];
 const PANEL_LABELS = { Windscreen: 'Windscreen frame' };
 const panelRows = (panels) => panels
@@ -35,13 +35,13 @@ const panelRows = (panels) => panels
 
 /**
  * A laptop on a standing desk next to the plotter. Its screen runs "PPF Studio": at first the whole screen is the
- * car turning in the dark studio (the page's opening shot), then the app's chrome slides in around it, the car's
+ * car turning on the studio's grey (the page's opening shot), then the app's chrome slides in around it, the car's
  * panels are picked out, flattened into the nested kit and sent to the cutter.
  * state: on (screen brightness), ui 0→1 (chrome in), sel 0→1 (panels picked), nest 0→1 (kit view),
  * send 0→1 (upload), cursor 0→2 (viewport → "Extract" → "Send"), click 0→1 (press flash)
- * car: { title, short }, its name in the top bar and the outliner; light: a light studio (the viewport is near white)
+ * car: { title, short }, its name in the top bar and the outliner
  */
-export function createLaptop({ car, light = false }) {
+export function createLaptop({ car }) {
   const state = { alpha: 1, on: 1, ui: 0, sel: 0, nest: 0, send: 0, cursor: 0, cursorOn: 0, click: 0 };
   const group = new THREE.Group();
   const fading = [];        // every material of the desk and the laptop, so they can fade away once the kit is sent
@@ -101,9 +101,15 @@ export function createLaptop({ car, light = false }) {
   uiTex.anisotropy = 8;
   // the app viewport is rendered only where the screen is in shot, at about the size it is seen at: the opening
   // shot fills the whole frame (on a phone, a tall slice of the 16:10 screen), later the laptop is small in frame.
-  // The target is sized from the page canvas (setViewSize); each frame uses its lower-left corner.
-  const rt = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: isTouch ? 2 : 4 });
+  // The target is sized from the page canvas (setViewSize); each frame uses its lower-left corner. Its depth goes to
+  // Sketchfab's SSAO, as the page's own frame does (sflook.js).
+  const rt = new THREE.WebGLRenderTarget(16, 16, {
+    type: THREE.HalfFloatType, samples: isTouch ? 2 : 4, depthTexture: new THREE.DepthTexture(16, 16),
+  });
   const RT_MAX = isTouch ? 1.2e6 : 2.2e6;     // pixels
+  const ao = createSfAO();
+  // the screen gives its render's light as it is, its own SSAO (uAO) in it: the page grades it with the rest of the
+  // frame (Sketchfab's post, sflook.js)
   const screenU = {
     uUI: { value: uiTex },
     uView: { value: rt.texture },
@@ -113,11 +119,6 @@ export function createLaptop({ car, light = false }) {
     uTexel: { value: new THREE.Vector2(1, 1) },
     uOn: { value: 1 },
     uAlpha: { value: 1 },
-    uExposure: { value: 1 },
-    uLinear: { value: 0 },           // 1: the page's tone mapping is linear (a Sketchfab-like studio), so is the screen's
-    // 1: the page's frame goes through Sketchfab's post (setSf): the screen gives its render's light as it is, with
-    // its own SSAO (uAO) in it, and the page grades it with the rest of the frame
-    uSf: { value: 0 },
     uAO: { value: (() => { const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })() },
   };
   const screenMat = new THREE.ShaderMaterial({
@@ -129,24 +130,8 @@ export function createLaptop({ car, light = false }) {
       void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
     fragmentShader: /* glsl */ `
       uniform sampler2D uUI; uniform sampler2D uView; uniform vec4 uRect; uniform vec4 uSub; uniform vec2 uSubScale; uniform vec2 uTexel;
-      uniform float uOn; uniform float uAlpha; uniform float uExposure; uniform float uLinear;
-      uniform float uSf; uniform sampler2D uAO;
+      uniform float uOn; uniform float uAlpha; uniform sampler2D uAO;
       varying vec2 vUv;
-      vec3 neutral(vec3 c) {   // the renderer's Khronos PBR Neutral, so the screen matches the page's own frames
-        const float startCompression = 0.8 - 0.04;
-        const float desaturation = 0.15;
-        c *= uExposure;
-        float x = min(c.r, min(c.g, c.b));
-        float offset = x < 0.08 ? x - 6.25 * x * x : 0.04;
-        c -= offset;
-        float peak = max(c.r, max(c.g, c.b));
-        if (peak < startCompression) return c;
-        float d = 1.0 - startCompression;
-        float newPeak = 1.0 - d * d / (peak + d - startCompression);
-        c *= newPeak / peak;
-        float g = 1.0 - 1.0 / (desaturation * (peak - newPeak) + 1.0);
-        return mix(c, vec3(newPeak), g);
-      }
       void main() {
         vec2 r = (vUv - uRect.xy) / (uRect.zw - uRect.xy);
         float inside = step(0.0, r.x) * step(r.x, 1.0) * step(0.0, r.y) * step(r.y, 1.0);
@@ -156,8 +141,7 @@ export function createLaptop({ car, light = false }) {
         if (ra < ${RT_ASPECT.toFixed(4)}) q.x *= ra / ${RT_ASPECT.toFixed(4)}; else q.y *= ${RT_ASPECT.toFixed(4)} / ra;
         vec2 s = clamp((q + 0.5 - uSub.xy) / max(uSub.zw - uSub.xy, vec2(1e-4)), 0.0, 1.0) * uSubScale;
         vec2 sc = clamp(s, uTexel * 0.5, uSubScale - uTexel * 0.5);
-        vec3 hdr = texture2D(uView, sc).rgb;
-        vec3 view = uSf > 0.5 ? hdr * texture2D(uAO, sc).r : uLinear > 0.5 ? clamp(hdr * uExposure, 0.0, 1.0) : neutral(hdr);
+        vec3 view = texture2D(uView, sc).rgb * texture2D(uAO, sc).r;
         vec4 ui = sRGBTransferEOTF(texture2D(uUI, vec2(vUv.x, 1.0 - vUv.y)));
         vec3 col = mix(view * inside, ui.rgb, ui.a);
         gl_FragColor = vec4(col * uOn, uAlpha);
@@ -168,7 +152,7 @@ export function createLaptop({ car, light = false }) {
   screen.position.set(0, 0.112, 0.0001);
   lid.add(screen);
 
-  // the app's viewport camera turns round the car (layer 1: car, floor, grid, panel highlights)
+  // the app's viewport camera turns round the car (layer 1: car, its ground shadow, grid, panel highlights)
   const view = new THREE.PerspectiveCamera(26, RT_ASPECT, 0.05, 80);
   view.layers.set(1);
   const grid = new THREE.GridHelper(24, 48, 0x6a6f78, 0x3a3e45);
@@ -190,15 +174,10 @@ export function createLaptop({ car, light = false }) {
   mark.layers.set(1);
   mark.visible = false;
 
-  /**
-   * add the panel highlights: one mesh per kit panel, sharing its geometry (3D shape). On the dark studio, gold light
-   * added to the paint. On a light one added light has no room left to show, and gold laid over a yellow car hardly
-   * shows either: the paint is tinted gold (multiplied, so a white floor turns gold and a yellow car amber), each panel
-   * outlined along its cut edge as the cutter will draw it
-   */
+  /** add the panel highlights: one mesh per kit panel, sharing its geometry (3D shape), gold light added to the paint */
   const addHighlights = (panels) => {
     panels.forEach((p, i) => {
-      const m = new THREE.Mesh(p.mesh.geometry, light ? outlined() : new THREE.MeshBasicMaterial({
+      const m = new THREE.Mesh(p.mesh.geometry, new THREE.MeshBasicMaterial({
         color: 0xf4b223, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
         forceSinglePass: true,          // (added light: the order of the faces makes no difference)
       }));
@@ -210,26 +189,7 @@ export function createLaptop({ car, light = false }) {
       highlights.add(m);
     });
   };
-  const HIGHLIGHT = light ? 1 : 0.42;     // their opacity once picked
-  /**
-   * (light studio) a highlight that tints what is under it: premultiplied, multiply blending leaves it × mix(1, gold,
-   * alpha). The outline from the light kit's corners (kit.js CUT_EDGE_GLSL)
-   */
-  const outlined = () => {
-    const mat = new THREE.MeshBasicMaterial({
-      color: 0xf4b223, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,
-      blending: THREE.MultiplyBlending, premultipliedAlpha: true,
-    });
-    mat.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader
-        .replace('#include <common>', '#include <common>\nattribute vec3 aBary; attribute vec3 aCut; attribute vec3 aTip;\nvarying vec3 vBary; varying vec3 vCut; varying vec3 vTip;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvBary = aBary; vCut = aCut; vTip = aTip;');
-      sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', `#include <common>\nvarying vec3 vBary; varying vec3 vCut; varying vec3 vTip;\n${CUT_EDGE_GLSL}`)
-        .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= max(0.35, 1.0 - smoothstep(1.2, 2.4, cutEdgePx(vBary, vCut, vTip)));');
-    };
-    return mat;
-  };
+  const HIGHLIGHT = 0.42;                 // their opacity once picked
 
   // ---------------------------------------------------------------- UI drawing
   let kit = null;                  // patterns.json, for the nested-kit view
@@ -613,8 +573,6 @@ export function createLaptop({ car, light = false }) {
    * (the screen fills the frame) → 0 once pulled back; aspect: the page's width / height; copyLeft: the headline sits
    * in a left column (else above the picture).
    */
-  let viewHook = null;                          // called with the viewport camera just before it renders (setViewHook)
-  let sfAO = null;                              // Sketchfab's SSAO for the viewport (setSf)
   const renderView = (renderer, scene, time, camera, bw, bh, hook, aspect, copyLeft) => {
     if (state.on < 0.01 || state.alpha < 0.01) return;
     if (!seenBox(camera)) return;
@@ -687,10 +645,9 @@ export function createLaptop({ car, light = false }) {
     fog.near = dist + 4;
     fog.far = dist + 22;
     rt.viewport.set(0, 0, pw, ph);
-    if (viewHook) viewHook(view);
     renderer.setRenderTarget(rt);
     renderer.render(scene, view);
-    if (sfAO) screenU.uAO.value = sfAO.render(renderer, rt.depthTexture, view, rt.width, rt.height, pw, ph);
+    screenU.uAO.value = ao.render(renderer, rt.depthTexture, view, rt.width, rt.height, pw, ph);
     renderer.setRenderTarget(null);
     fog.near = near;
     fog.far = far;
@@ -734,16 +691,6 @@ export function createLaptop({ car, light = false }) {
     markReady: Promise.all([markWide.ready, markTall.ready]),
     setKit: (k) => { kit = k; rows = panelRows(k.panels); dirty = true; },
     refresh: () => { dirty = true; },
-    setLinearTone: (on, exposure = 1) => {
-      screenU.uLinear.value = on ? 1 : 0;
-      screenU.uExposure.value = exposure;
-    },
-    setViewHook: (fn) => { viewHook = fn; },
-    setSf: (ao) => {
-      sfAO = ao;
-      rt.depthTexture = new THREE.DepthTexture(rt.width, rt.height);
-      screenU.uSf.value = 1;
-    },
     tmp,
   };
 }

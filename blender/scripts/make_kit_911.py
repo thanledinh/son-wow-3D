@@ -1,10 +1,10 @@
 """blender -b --factory-startup --python make_kit_911.py -- <out .blend>
 
-The Porsche 911 trial car's own PPF kit (?car=porsche911), cut from its paint the way make_ppf_pieces.py and
+The Porsche 911's own PPF kit (the page's, public/v3/patterns.*), cut from its paint the way make_ppf_pieces.py and
 film_3_burst.py cut the Urus's: each piece is one UV island of the paint (the car's own panel), copied, welded and
 pushed out along its normals so it sits on the paint. Saves a .blend with PPF_Hood + PPF_Panel_* (mesh centred on
 its centroid, burst_c / burst_dir set), ready for export_patterns_web.py.
-The glTF is placed exactly where the page puts it (src/car.js loadTrial: turned 180 deg about up, scaled to 4.52 m,
+The glTF is placed exactly where the page puts it (src/car.js loadCar: turned 180 deg about up, scaled to 4.52 m,
 centred, wheels on the floor), so after the export's Y-up turn the pieces are in the page's car space.
 """
 import os

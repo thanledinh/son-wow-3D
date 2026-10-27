@@ -2,7 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
-import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 
 const BASE = import.meta.env.BASE_URL;
 
@@ -10,97 +9,11 @@ export const loadingManager = THREE.DefaultLoadingManager;
 
 const draco = new DRACOLoader().setDecoderPath(`${BASE}draco/`);
 export const gltfLoader = new GLTFLoader().setDRACOLoader(draco);
-// Bump when re-exporting models from Blender so browsers don't serve a stale GLB.
-const ASSET_VERSION = 11;
+// Bump when re-exporting models or the kit from Blender, so browsers never serve a stale GLB (nor a cached kit glb
+// with a newer patterns.json).
+const ASSET_VERSION = 14;
 export const asset = (p) => `${BASE}${p}?v=${ASSET_VERSION}`;
 export const hdrLoader = new HDRLoader();
-
-/**
- * Photo studio rendered into a PMREM environment map: long softbox strips give the classic
- * car-showroom reflection lines. With `hdr` (a real studio HDRI) the strips sit inside a photographed
- * room, which gives reflections the uneven, believable falloff a hand-built room lacks; its lower
- * half is darkened so it agrees with the black floor.
- */
-export function makeStudioEnv(renderer, {
-  warm = 1, cool = 1, hdr = null, hdrGain = 0.55, strips = 1, ambient = 0x030304, floorLift = 0.08, floorColor = 0x15171a,
-} = {}) {
-  const env = new THREE.Scene();
-  env.background = new THREE.Color(ambient);
-  if (hdr) {
-    const room = new THREE.Mesh(
-      new THREE.SphereGeometry(20, 64, 32),
-      new THREE.ShaderMaterial({
-        side: THREE.BackSide,
-        depthWrite: false,
-        uniforms: { map: { value: hdr }, uGain: { value: hdrGain }, uFloor: { value: floorLift } },
-        vertexShader: /* glsl */ `
-          varying vec3 vDir;
-          void main() { vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-        fragmentShader: /* glsl */ `
-          uniform sampler2D map; uniform float uGain; uniform float uFloor;
-          varying vec3 vDir;
-          void main() {
-            vec3 d = normalize(vDir);
-            vec2 uv = vec2(atan(d.z, d.x) / 6.2831853 + 0.5, asin(clamp(d.y, -1.0, 1.0)) / 3.1415927 + 0.5);
-            vec3 c = texture2D(map, uv).rgb * uGain;
-            c *= mix(uFloor, 1.0, smoothstep(-0.2, 0.3, d.y));
-            gl_FragColor = vec4(c, 1.0);
-          }`,
-      }),
-    );
-    env.add(room);
-  }
-  const plane = new THREE.PlaneGeometry(1, 1);
-  const add = (color, intensity, pos, scale) => {
-    if (strips <= 0) return;                         // (a photographed studio on its own: no boxes of ours)
-    const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity * strips), side: THREE.DoubleSide });
-    const m = new THREE.Mesh(plane, mat);
-    m.position.set(...pos);
-    m.scale.set(scale[0], scale[1], 1);
-    m.lookAt(0, 0.5, 0);
-    env.add(m);
-  };
-  add(0xffffff, 2.4, [0, 8, 0], [5, 14]);            // overhead softbox
-  add(0xffffff, 7.0, [-8, 2.6, 0], [16, 0.5]);       // left strip
-  add(0xffffff, 7.0, [8, 2.6, 0], [16, 0.5]);        // right strip
-  add(0xffffff, 3.0, [-8, 0.9, 0], [16, 0.18]);      // low left strip
-  add(0xffffff, 3.0, [8, 0.9, 0], [16, 0.18]);       // low right strip
-  add(0xffffff, 1.6, [0, 2.5, 9], [7, 2.2]);         // front fill
-  add(0xffb347, 3.2 * warm, [-6, 1.5, -7], [4, 3]);  // warm rim
-  add(0x7fe7ef, 1.8 * cool, [6, 1.2, -7], [3, 2]);   // cool rim
-  add(floorColor, 1.0, [0, -2, 0], [30, 30]);        // floor bounce
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const tex = pmrem.fromScene(env, 0.035).texture;
-  pmrem.dispose();
-  env.traverse((o) => o.material && o.material.dispose());
-  return tex;
-}
-
-/** Reflector with a 13-tap poisson blur: a polished studio floor blurs what it reflects a little. */
-export const SOFT_REFLECTOR = {
-  ...Reflector.ReflectorShader,
-  name: 'SoftReflectorShader',
-  uniforms: { ...Reflector.ReflectorShader.uniforms, uBlur: { value: 0.0042 } },
-  fragmentShader: /* glsl */ `
-    uniform vec3 color; uniform sampler2D tDiffuse; uniform float uBlur;
-    varying vec4 vUv;
-    #include <logdepthbuf_pars_fragment>
-    float blendOverlay(float b, float l) { return b < 0.5 ? (2.0 * b * l) : (1.0 - 2.0 * (1.0 - b) * (1.0 - l)); }
-    vec3 blendOverlay(vec3 b, vec3 l) { return vec3(blendOverlay(b.r, l.r), blendOverlay(b.g, l.g), blendOverlay(b.b, l.b)); }
-    const vec2 P[12] = vec2[](
-      vec2(-0.326, -0.406), vec2(-0.840, -0.074), vec2(-0.696, 0.457), vec2(-0.203, 0.621),
-      vec2(0.962, -0.195), vec2(0.473, -0.480), vec2(0.519, 0.767), vec2(0.185, -0.893),
-      vec2(0.507, 0.064), vec2(0.896, 0.412), vec2(-0.322, -0.933), vec2(-0.792, -0.598));
-    void main() {
-      #include <logdepthbuf_fragment>
-      vec2 uv = vUv.xy / vUv.w;
-      vec3 acc = texture2D(tDiffuse, uv).rgb;
-      for (int i = 0; i < 12; i++) acc += texture2D(tDiffuse, uv + P[i] * uBlur).rgb;
-      gl_FragColor = vec4(blendOverlay(acc / 13.0, color), 1.0);
-      #include <tonemapping_fragment>
-      #include <colorspace_fragment>
-    }`,
-};
 
 /** Soft radial gradient texture (white center → transparent edge), for shadows and fades. */
 export function radialTexture(inner = 'rgba(0,0,0,1)', outer = 'rgba(0,0,0,0)', size = 256, stop = 0) {

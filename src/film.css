@@ -2,12 +2,6 @@
 .film { position: relative; }
 .film__sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
 .film__canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: pan-y; }
-.film__vignette {
-  position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(120% 95% at 50% 45%, transparent 58%, rgba(6, 7, 8, 0.75) 100%),
-    linear-gradient(to top, rgba(6, 7, 8, 0.7), transparent 26%);
-}
 
 /* opening headline */
 .intro {

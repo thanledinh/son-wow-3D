@@ -24,5 +24,5 @@ Với Dokploy: tạo Application từ repo này, Build Type = **Dockerfile**, po
 
 ## Ghi chú
 
-- Mô hình xe: “Lamborghini Urus 2018” của kirikom9000, giấy phép CC BY 4.0 (ghi nguồn ở thẻ cuối trang, cần giữ nguyên).
+- Mô hình xe: “Porsche 911” (911 Targa 4S 2021) của Outlaw Games, giấy phép CC BY-NC 4.0; ánh sáng môi trường “Trinitatis Church” của Unity Technologies (CC0). Ghi nguồn ở chân trang, cần giữ nguyên.
 - Nội dung còn chờ xưởng cung cấp: link đặt lịch (Zalo / hotline / bản đồ).

@@ -1,70 +1,26 @@
 import * as THREE from 'three';
 import gsap from 'gsap';
-import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
-import { makeStudioEnv, radialTexture, hdrLoader, asset, gltfLoader, SOFT_REFLECTOR, isTouch } from '../studio.js';
-import { loadCar, createUniforms, SHOWN_CAR, CAR_KEY } from '../car.js';
+import { radialTexture, hdrLoader, asset, gltfLoader, isTouch } from '../studio.js';
+import { loadCar, createUniforms, CAR } from '../car.js';
 import { cuttingMat } from '../cutter.js';
-import { createKit, URUS_KIT } from './kit.js';
+import { createKit } from './kit.js';
 import { createLaptop } from './laptop.js';
 import { createCable } from './cable.js';
 import { createSample } from './sample.js';
-import { SF, patchShading, addSfLights, createSfAO, createSfPost, bakeGroundAO } from './sflook.js';
+import { SF, patchShading, addSfLights, createSfPost, bakeGroundAO } from './sflook.js';
 
 const TAU = Math.PI * 2;
 
-// the studio: a dark room with a pool of light under the car. Trials (?studio=…): warm, a warm dark graphite with an
-// amber glow behind and an amber floor (a cool silver car stands off it); light, a pale grey showroom cove as in a
-// maker's configurator (the car reflects a bright room and its shadow grounds it). mark: the name behind the car.
-const STUDIOS = {
-  dark: {
-    bg: 0x060708, centre: '#1c1f23', edge: '#060708', mirror: 0x5a5a5a, pool: 0.16, poolColor: '255,244,226',
-    fade: 'rgb(140,140,140)', env: { strips: 0.95, hdrGain: 0.7 },
-  },
-  warm: {
-    bg: 0x0b0806, centre: '#3d2d1e', edge: '#0b0806', mirror: 0x6e5f4d, pool: 0.26, poolColor: '255,196,120',
-    fade: 'rgb(140,140,140)', env: { strips: 0.95, hdrGain: 0.55, warm: 2.4, cool: 0.25, floorColor: 0x2c2117 },
-    mark: 0x4a3c2e,
-  },
-  light: {
-    bg: 0xc5c8cc, centre: '#f3f4f5', edge: '#c5c8cc', mirror: 0xcfd1d4, pool: 0, poolColor: '255,255,255',
-    fade: 'rgb(140,140,140)', env: { strips: 0.8, hdrGain: 1.15, ambient: 0x55585c, floorColor: 0xa6a9ad, floorLift: 0.75 },
-    mark: 0xb0b4ba, light: true,
-  },
-  // gray: Sketchfab's look, a seamless soft grey with no floor to see, only the car's soft shadow on it
-  gray: {
-    bg: 0xc4c4c4, centre: '#d9d9d9', edge: '#b9b9b9', mirror: 0x9a9a9a, pool: 0, poolColor: '255,255,255',
-    fade: 'rgb(140,140,140)', env: { strips: 0.75, hdrGain: 1.2, ambient: 0x666666, floorColor: 0xb4b4b4, floorLift: 0.85 },
-    mark: 0xb0b0b0, light: true, floor: false, key: 2.2,
-  },
-  // sketchfab: a trial car exactly as Sketchfab's viewer shows it (sf; sflook.js): its environment (hdri: the
-  // Trinitatis Church panorama its viewer lights the 911 with), lights, shading and post-processing, on its white
-  // background that the post turns a light grey, over the ambient occlusion it bakes into the ground under the car.
-  // mark: the name behind the car comes out a shade darker than the background after the post
-  // The page's own since 2026-10-26, on a dark grey (the user's pick over Sketchfab's white): its colour balance turns
-  // it a deep blue-grey, the car's shadow still shows on it and the copy goes back to white
-  sketchfab: {
-    bg: 0x303030, centre: '#303030', edge: '#303030', mirror: 0x9a9a9a, pool: 0, poolColor: '255,255,255',
-    fade: 'rgb(140,140,140)', hdri: 'trial/trinitatis_1024.hdr', sf: true,
-    envIntensity: SF.envIntensity, envRotation: SF.envRotation,
-    floor: false, shadow: 1, viewer: true, form: 0, boxes: 0,
-    cls: 'studio-sketchfab',
-  },
-  // sketchfab0: the first try at its look (Poly Haven's studio_small_09, linear, our paint in the viewer's colour)
-  sketchfab0: {
-    bg: 0xcdcdcd, centre: '#cdcdcd', edge: '#cdcdcd', mirror: 0x9a9a9a, pool: 0, poolColor: '255,255,255',
-    fade: 'rgb(140,140,140)', env: { strips: 0, hdrGain: 0.95, floorLift: 0.5 }, hdri: 'trial/studio_small_09_2k.hdr',
-    envIntensity: 1, envRotation: 0,
-    mark: 0xbdbdbd, light: true, floor: false, shadow: 0.5, linear: true, exposure: 1.15, viewer: true, form: 0, boxes: 0,
-    camKey: 2.2,
-    cls: 'studio-sketchfab0',
-  },
-};
-// trial: ?sfcam=ex,ey,ez,tx,ty,tz,fov in Sketchfab's world (its viewer's camera): the car alone from there, to lay our
-// frame over a capture of its viewer
+// The studio: the car exactly as Sketchfab's viewer shows it (sflook.js): its environment (the Trinitatis Church
+// panorama its viewer lights the 911 with), lights, shading and post-processing, over the ambient occlusion it bakes
+// into the ground under the car. The background is a dark grey (the user's pick over Sketchfab's white) that its colour
+// balance turns a deep blue-grey; the car's shadow still shows on it.
+const BG = 0x303030;
+const HDRI = 'textures/trinitatis.hdr';
+// for comparing with Sketchfab: ?sfcam=ex,ey,ez,tx,ty,tz,fov in Sketchfab's world (its viewer's camera) shows the car
+// alone from there, to lay our frame over a capture of its viewer; ?rot= turns the environment round the car (rad)
 const SFCAM = new URLSearchParams(location.search).get('sfcam')?.split(',').map(Number) ?? null;
-const STUDIO = STUDIOS[new URLSearchParams(location.search).get('studio')] ?? STUDIOS.sketchfab;
-const ENV_TURN = +new URLSearchParams(location.search).get('rot') || 0;   // trial: turn the studio round the car (rad)
-const BG = STUDIO.bg;
+const ENV_TURN = +new URLSearchParams(location.search).get('rot') || 0;
 const DESK = new THREE.Vector3(-3.95, 0, -2.78);   // standing desk in front of the plotter's control-panel end
 const CAR_T = new THREE.Vector3(0, 0.72, 0);
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
@@ -78,18 +34,8 @@ const smooth = (t) => t * t * (3 - 2 * t);
 // by the car); wider than WIDE and under SHORT px high is a phone on its side, whose end card moves to the left column.
 const COPY_TOP = '(max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px)';
 const WIDE = 1.15, TALL = 0.9, SHORT = 500;
-// the car's body for framing (car space ≈ world: nose at -z), a touch inside its true box
+// the box the five-layer shot frames the car by (car space ≈ world: nose at -z)
 const CAR_BOX = [-1.05, 0, -2.5, 1.05, 1.6, 2.5];
-// trial (?paint=…): Lamborghini's own yellows, judged by eye (the maker publishes no screen values). Solid paints keep
-// our hint of pearl (metalness 0.2); the pearl and the metallic ones get more metal and a finer finish
-const TRIAL_PAINTS = {
-  evros: { color: 0xf6cc00, metalness: 0.2, roughness: 0.32 },      // Giallo Evros: bright, clean, solid
-  countach: { color: 0xf2a500, metalness: 0.2, roughness: 0.32 },   // Giallo Countach: warm, leaning to orange
-  tenerife: { color: 0xf5d23c, metalness: 0.4, roughness: 0.24 },   // Giallo Tenerife: pale pearl
-  orion: { color: 0xe9ad00, metalness: 0.6, roughness: 0.24 },      // Giallo Orion: deep golden metallic
-  // solid black: all of its look is the clear coat, so the softboxes are dimmed to stay lines, not white slabs
-  black: { color: 0x07080a, metalness: 0.1, roughness: 0.25, boxes: 0.3 },
-};
 
 // timeline seconds where each part starts (the page maps scroll onto this)
 export const T = {
@@ -110,90 +56,38 @@ export function createStage({ canvas, sampleUi }) {
   // otherwise draw 8 million a frame), and lowered a step at a time on a device that can't keep up (govern)
   const DPR_MAX = 1.75, PIXELS_MAX = 4.2e6;
   let dpr = 1, dprCap = DPR_MAX, dprFloor = 1;
-  // Khronos PBR Neutral keeps the Giallo a saturated gold (ACES pushed it to a pale, flat yellow). A Sketchfab-like
-  // studio renders as Sketchfab does instead: linear, bright colours keeping their full saturation, highlights clipping
-  renderer.toneMapping = STUDIO.linear || STUDIO.sf ? THREE.LinearToneMapping : THREE.NeutralToneMapping;
-  renderer.toneMappingExposure = STUDIO.exposure ?? 1;
-  // Sketchfab's look: its shading before anything compiles, its post for the page's frame, shadows for its light
-  let sfPost = null;
-  if (STUDIO.sf) {
-    patchShading();
-    sfPost = createSfPost(renderer);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFShadowMap;
-    renderer.shadowMap.autoUpdate = false;           // (the car and its light never move: drawn once, in warmUp)
-  }
+  // Sketchfab's look: its shading before anything compiles, its post for the page's frame (drawn linear into a target,
+  // which the post grades), shadows for its light. The renderer's own tone mapping only touches what is drawn straight
+  // onto the canvas: the five-layer square.
+  patchShading();
+  const sfPost = createSfPost(renderer);
+  renderer.toneMapping = THREE.LinearToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.shadowMap.autoUpdate = false;             // (the car and its light never move: drawn once, in warmUp)
 
   const scene = new THREE.Scene();
-  // layers: 0 everything the page camera sees (and the floor mirrors), 1 the laptop app's own viewport, 2 seen by the
-  // page camera but left out of the floor's mirror pass (the plotter: 108k triangles whose reflection hardly shows)
-  const MAIN_ONLY = 2;
-  // a soft radial backdrop: brighter behind the subject, falling off to the room's edge
-  scene.background = (() => {
-    const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = 320;
-    const g = c.getContext('2d');
-    const grd = g.createRadialGradient(256, 150, 10, 256, 160, 330);
-    grd.addColorStop(0, STUDIO.centre);
-    grd.addColorStop(1, STUDIO.edge);
-    g.fillStyle = grd;
-    g.fillRect(0, 0, c.width, c.height);
-    const t = new THREE.CanvasTexture(c);
-    t.colorSpace = THREE.SRGBColorSpace;
-    return t;
-  })();
-  scene.environment = makeStudioEnv(renderer, STUDIO.env);
-  scene.environmentIntensity = STUDIO.envIntensity ?? 1;
+  // the background: one sRGB texel, drawn rather than cleared to (a clear colour reaches the post a hair different, and
+  // after the grade lands a level off in places)
+  scene.background = new THREE.DataTexture(new Uint8Array([(BG >> 16) & 255, (BG >> 8) & 255, BG & 255, 255]), 1, 1);
+  scene.background.colorSpace = THREE.SRGBColorSpace;
+  scene.background.needsUpdate = true;
+  scene.environmentIntensity = SF.envIntensity;
+  scene.environmentRotation.y = SF.envRotation + ENV_TURN;
   scene.fog = new THREE.Fog(BG, 14, 34);
+  // layers: 0 everything the page camera sees, 1 the laptop app's own viewport
   const camera = new THREE.PerspectiveCamera(30, 1, 0.02, 120);
-  camera.layers.enable(MAIN_ONLY);
 
-  // our softbox studio around a photographed room; or (STUDIO.hdri) a photographed studio on its own; or (STUDIO.sf)
-  // the panorama as it is
-  const envReady = (STUDIO.sf
-    ? hdrLoader.loadAsync(asset(STUDIO.hdri)).then((tex) => {
-      tex.mapping = THREE.EquirectangularReflectionMapping;
-      const pmrem = new THREE.PMREMGenerator(renderer);
-      const old = scene.environment;
-      scene.environment = pmrem.fromEquirectangular(tex).texture;
-      pmrem.dispose();
-      tex.dispose();
-      old.dispose();
-    })
-    : STUDIO.hdri
-    ? hdrLoader.loadAsync(asset(STUDIO.hdri)).then((tex) => {
-      // (through makeStudioEnv, for its gain and its darkened floor half: a white studio floor lit the car's sides
-      // from below)
-      const old = scene.environment;
-      scene.environment = makeStudioEnv(renderer, { hdr: tex, ...STUDIO.env });
-      tex.dispose();
-      old.dispose();
-    })
-    : hdrLoader.loadAsync(asset('textures/studio.hdr')).then((hdr) => {
-      const old = scene.environment;
-      scene.environment = makeStudioEnv(renderer, { hdr, ...STUDIO.env });
-      old.dispose();
-      hdr.dispose();
-    })).catch((err) => console.warn('studio HDRI unavailable, keeping the procedural studio', err));
+  // the panorama as it is (without it the car shows with no reflections)
+  const envReady = hdrLoader.loadAsync(asset(HDRI)).then((tex) => {
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromEquirectangular(tex).texture;
+    pmrem.dispose();
+    tex.dispose();
+  }).catch((err) => console.warn('environment unavailable', err));
 
-  // ---- floor (also seen by the app's viewport camera: layer 1)
-  const FLOOR_X = -1.4;
-  // (no MSAA: the floor blurs what it reflects anyway)
-  const mirror = new Reflector(new THREE.PlaneGeometry(44, 44), { color: STUDIO.mirror, textureWidth: 1024, textureHeight: 1024, multisample: 0, shader: SOFT_REFLECTOR });
-  mirror.rotation.x = -Math.PI / 2;
-  mirror.position.x = FLOOR_X;
-  mirror.getReflectionCamera(camera).layers.set(0);       // the page camera's mirror pass skips MAIN_ONLY
-  const overFloor = { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 };
-  const fade = new THREE.Mesh(
-    new THREE.PlaneGeometry(30, 30),
-    new THREE.MeshBasicMaterial({ color: BG, transparent: true, depthWrite: false, alphaMap: radialTexture(STUDIO.fade, 'rgb(255,255,255)', 512), ...overFloor }),
-  );
-  fade.rotation.x = -Math.PI / 2;
-  fade.position.set(FLOOR_X, 0.01, 0);
-  const outer = new THREE.Mesh(new THREE.RingGeometry(14.9, 44, 64), new THREE.MeshBasicMaterial({ color: BG, ...overFloor }));
-  outer.rotation.x = -Math.PI / 2;
-  outer.position.set(FLOOR_X, 0.01, 0);
+  // ---- floor shadows (the car's also seen by the app's viewport camera: layer 1)
   const shadowMat = (map, strength) => new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -201,9 +95,15 @@ export function createStage({ canvas, sampleUi }) {
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: 'uniform sampler2D map; uniform float uStrength; varying vec2 vUv; void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, pow(1.0 - texture2D(map, vUv).r, 1.1) * uStrength); }',
   });
-  const carShadow = new THREE.Mesh(new THREE.PlaneGeometry(3.8, 6.6), shadowMat(new THREE.TextureLoader().load(asset('textures/car-shadow.jpg')), 0.96));
+  // the ground's occlusion under the car, baked once it has loaded (groundAO)
+  const carShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), shadowMat(null, 1));
   carShadow.rotation.x = -Math.PI / 2;
-  carShadow.position.y = 0.006;
+  const groundAO = (g) => {
+    carShadow.material.uniforms.map.value = g.texture;
+    carShadow.position.set(g.rect.x, 0.004, g.rect.y);
+    carShadow.scale.set(g.rect.z, g.rect.w, 1);
+    return g.rect.toArray();
+  };
   const soft = radialTexture('rgb(40,40,40)', 'rgb(255,255,255)', 256);
   const rigShadow = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.6), shadowMat(soft, 0.75));
   rigShadow.rotation.x = -Math.PI / 2;
@@ -211,23 +111,11 @@ export function createStage({ canvas, sampleUi }) {
   const deskShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.1), shadowMat(soft, 0.7));
   deskShadow.rotation.x = -Math.PI / 2;
   deskShadow.position.set(DESK.x, 0.006, DESK.z);
-  // dark studio: a pool of light on the floor round the car, so it stands in light, not in a void
-  const pool = new THREE.Mesh(
-    new THREE.PlaneGeometry(9, 12),
-    new THREE.MeshBasicMaterial({
-      map: radialTexture(`rgba(${STUDIO.poolColor},1)`, `rgba(${STUDIO.poolColor},0)`, 256), transparent: true, depthWrite: false,
-      blending: THREE.AdditiveBlending, opacity: STUDIO.pool, ...overFloor,
-    }),
-  );
-  pool.rotation.x = -Math.PI / 2;
-  pool.position.y = 0.012;
-  pool.visible = STUDIO.pool > 0;
-  scene.add(mirror, fade, outer, carShadow, rigShadow, deskShadow, pool);
-  if (STUDIO.floor === false) [mirror, fade, outer].forEach((o) => { o.visible = false; });
-  [mirror, fade, outer, carShadow, pool].forEach((o) => o.layers.enable(1));
+  scene.add(carShadow, rigShadow, deskShadow);
+  carShadow.layers.enable(1);
 
-  // ---- lights: pools over the plotter, a sun for the swirl test. Always present (zero when off) and on both
-  // layers, so the light setup never changes between the two renders and nothing recompiles.
+  // ---- lights: pools over the plotter, a sun for the swirl test, Sketchfab's lights for the car. Always present (zero
+  // when off) and on both layers, so the light setup never changes between the two renders and nothing recompiles.
   const pools = [
     { at: [-4.1, 3.1, -0.6], to: [-4.2, 1.0, -0.6], i: 3.2 },
     { at: [-2.8, 3.0, -0.6], to: [-2.8, 1.0, -0.6], i: 3.6 },
@@ -244,26 +132,7 @@ export function createStage({ canvas, sampleUi }) {
   const sun = new THREE.PointLight(0xfff1dc, 0, 0, 2);
   sun.layers.enable(1);
   scene.add(sun);
-  // a key light high over the car, as a photo studio hangs one over a car on a seamless (STUDIO.key, zero elsewhere):
-  // bonnet, roof and the tops of the wings take it and the colour glows; the flanks fall away below it.
-  // STUDIO.camKey instead carries it with the camera, above and to the right of the lens, as Sketchfab's lights go
-  // with its camera: whatever side of the car faces the lens is lit (aimKey, before each camera renders)
-  const key = new THREE.DirectionalLight(0xffffff, STUDIO.key ?? STUDIO.camKey ?? 0);
-  key.position.set(0.8, 9, -1.5);
-  key.target.position.copy(CAR_T);
-  key.layers.enable(1);
-  scene.add(key, key.target);
-  const sfLights = STUDIO.sf ? addSfLights(scene, new THREE.Vector3(0, 0.65, 0)) : [];
-  const keyUp = new THREE.Vector3(), keyRight = new THREE.Vector3();
-  const aimKey = (cam) => {
-    if (!STUDIO.camKey) return;
-    keyUp.set(0, 1, 0).applyQuaternion(cam.quaternion);
-    keyRight.set(1, 0, 0).applyQuaternion(cam.quaternion);
-    key.position.copy(cam.position).addScaledVector(keyUp, 4).addScaledVector(keyRight, 2.5);
-    key.target.position.copy(CAR_T);
-    key.updateMatrixWorld();
-    key.target.updateMatrixWorld();
-  };
+  const sfLights = addSfLights(scene, new THREE.Vector3(0, 0.65, 0));
   // the sun's reflection: a small hot core with a soft bloom round it (the user found a bigger, brighter one glaring)
   const glareTex = (() => {
     const c = document.createElement('canvas');
@@ -289,22 +158,12 @@ export function createStage({ canvas, sampleUi }) {
   scene.add(glare);
 
   const uniforms = createUniforms();
-  uniforms.uForm.value = 1;                           // the paint lit like a studio photo: bright tops, deep gold flanks
-  if (new URLSearchParams(location.search).get('finish') === 'ceramic') uniforms.uCeramic.value = 1;   // trial
-  // the car's own kit (a trial car may have none: the Urus's, stretched to it once it loads)
-  const kit = createKit(SHOWN_CAR.kit, { light: !!STUDIO.light });
-  const laptop = createLaptop({ car: SHOWN_CAR, light: !!STUDIO.light });
+  const kit = createKit();
+  const laptop = createLaptop({ car: CAR });
   const sample = createSample(sampleUi);
   laptop.group.position.copy(DESK);
   laptop.group.rotation.y = Math.PI;               // the screen faces -z, away from the car
-  if (STUDIO.mark) laptop.mark.material.color.set(STUDIO.mark);
-  document.documentElement.classList.toggle('studio-light', !!STUDIO.light);
-  if (STUDIO.cls) document.documentElement.classList.add(STUDIO.cls);
-  laptop.setLinearTone(!!STUDIO.linear, STUDIO.exposure ?? 1);
-  laptop.setViewHook(aimKey);
-  if (STUDIO.sf) laptop.setSf(createSfAO());
   if (SFCAM) document.documentElement.classList.add('sf-compare');
-  carShadow.material.uniforms.uStrength.value = STUDIO.shadow ?? 0.96;
   scene.add(laptop.group, laptop.grid, laptop.highlights, laptop.mark);
   const plotterRig = { carriage: null, carriageBase: new THREE.Vector3(), roll: null, rollBase: new THREE.Quaternion(), rollAxis: new THREE.Vector3(0, 0, 1) };
   let cable = null, car = null, tl = null, builtFor = '';
@@ -314,73 +173,38 @@ export function createStage({ canvas, sampleUi }) {
   // (negative: slides left, for the five-layer sample on the right)
   const cam = { tx: 0, ty: 0, tz: 0, az: 0, el: 0, dist: 1, lens: 35, hook: 1, shift: 0 };
   const look = { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
-  const overrides = {};
-  let plotterGroup = null;                            // dev: pin a look value (e.g. gloss) for comparisons
+  const overrides = {};                               // dev: pin a look value (e.g. gloss) for comparisons
+  let plotterGroup = null;
 
   const ready = Promise.all([
-    loadCar(uniforms, { exact: !!STUDIO.sf }),
+    loadCar(uniforms),
     gltfLoader.loadAsync(asset('models/plotter.glb')),
     kit.ready,
     envReady,
     laptop.markReady,
   ]).then(async ([c, plotter]) => {
     car = c;
-    // under Neutral tone mapping: the golden Giallo of the shop's reference shot (a trial car may keep its own colour)
-    if (!c.ownColor) c.paint.material.color.set(0xf2bf00);
-    const trial = TRIAL_PAINTS[new URLSearchParams(location.search).get('paint')];
-    if (trial) {
-      c.paint.material.map = null;                  // (a trial car's own colour atlas would tint the trial paint)
-      c.paint.material.color.set(trial.color);
-      c.paint.material.metalness = trial.metalness;
-      c.paint.material.roughness = trial.roughness;
-      uniforms.uBoxes.value = trial.boxes ?? 1;
-    }
-    if (STUDIO.viewer) {
-      if (c.viewerColor !== undefined && !STUDIO.sf) {
-        c.paint.material.map = null;
-        c.paint.material.color.set(c.viewerColor);
-      }
-      uniforms.uForm.value = STUDIO.form ?? 1;
-      uniforms.uBoxes.value = STUDIO.boxes ?? 1;
-    }
     scene.add(c.root);
     c.root.traverse((o) => o.layers.enable(1));
     c.root.updateMatrixWorld(true);
     uniforms.uCarInv.value.copy(c.root.matrixWorld).invert();
-    if (c.trial) {
-      const box = new THREE.Box3().setFromObject(c.paint);
-      // the Urus kit on this car (it has none of its own, or its own failed to load): stretched to its paint, before
-      // the app's highlights take the shapes
-      if (kit.base === URUS_KIT) kit.fitTo(box);
-      // our baked shadow is the Urus's, on a ground that is not quite white (it shows as a grey slab on a pale floor):
-      // a soft oval that fades to nothing, sized to this car
-      carShadow.material.uniforms.map.value = soft;
-      carShadow.scale.set(((box.max.x - box.min.x) * 1.5) / 3.8, ((box.max.z - box.min.z) * 1.22) / 6.6, 1);
-    }
-    if (STUDIO.sf) {
-      // the car casts its light's shadows on itself (not through its glass); the ground takes its baked occlusion
-      c.root.traverse((o) => {
-        if (!o.isMesh) return;
-        o.castShadow = !o.material.transparent;
-        o.receiveShadow = true;
-      });
-      const g = bakeGroundAO(renderer, c.root);
-      carShadow.material.uniforms.map.value = g.texture;
-      carShadow.position.set(g.rect.x, 0.004, g.rect.y);
-      carShadow.scale.set(g.rect.z / 3.8, g.rect.w / 6.6, 1);
-      if (c.sfModel) c.sfToWorld = c.sfModel.matrixWorld.clone();
-    }
-    // the footer credits the car on show (a trial car's licence asks for its own credit wherever it is shown)
-    const shown = c.trial ? CAR_KEY : 'urus';
-    document.querySelectorAll('.sd-foot__credit[data-car]').forEach((p) => { p.hidden = p.dataset.car !== shown; });
+    // the car casts its light's shadows on itself (not through its glass); the ground takes its baked occlusion
+    c.root.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = !o.material.transparent;
+      o.receiveShadow = true;
+    });
+    groundAO(bakeGroundAO(renderer, c.root));
+    c.sfToWorld = c.sfModel.matrixWorld.clone();
 
     scene.add(plotter.scene);
     plotterGroup = plotter.scene;
     plotter.scene.traverse((o) => {
-      o.layers.set(MAIN_ONLY);
       if (!o.isMesh || !o.material) return;
       o.material.envMapIntensity = 0.9;
       if (o.material.name.startsWith('Table_CutMat')) o.material = cuttingMat();
+      // the end caps' stipple normal map breaks up into black and white grain under the bright church light: plain satin
+      if (o.material.name === 'CNC_CapSatin') o.material.normalMap = null;
     });
     plotterRig.carriage = plotter.scene.getObjectByName('Plotter_Carriage');
     plotterRig.roll = plotter.scene.getObjectByName('Plotter_Roll');
@@ -449,10 +273,10 @@ export function createStage({ canvas, sampleUi }) {
   }
 
   // Nothing may compile or upload mid-scroll (each new shader froze the page for 0.1-1.3 s the first time its scene
-  // came up). Before the loader lifts: every material compiled for each target the page draws into (the screen, tone
-  // mapped; the laptop's screen texture and the floor mirror, linear; the five-layer square's own scene), with
-  // everything visible and every layer on; then a real frame at each stage of the film puts meshes and textures on
-  // the GPU too.
+  // came up). Before the loader lifts: every material compiled for the targets the page draws into (the page's frame
+  // and the laptop's screen texture, both linear targets for Sketchfab's post; the five-layer square's own scene, onto
+  // the canvas), with everything visible and every layer on; then a real frame at each stage of the film puts meshes
+  // and textures on the GPU too.
   async function warmUp() {
     const hidden = [];
     scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
@@ -460,22 +284,19 @@ export function createStage({ canvas, sampleUi }) {
     camera.layers.enableAll();
     camera.updateMatrixWorld();
     const compile = (s, c) => (renderer.compileAsync ? renderer.compileAsync(s, c) : Promise.resolve(renderer.compile(s, c)));
-    await compile(scene, camera);
     renderer.setRenderTarget(laptop.target);
     await compile(scene, camera);
     renderer.setRenderTarget(null);
     sample.scene.environment = scene.environment;
     await compile(sample.scene, sample.camera);
-    if (STUDIO.sf) {
-      // the shadows of the car's light, drawn once by the camera that sees every layer (a shadow map takes only what
-      // the camera rendering it sees, and the car is on the page's layer only from the lift on)
-      const tiny = new THREE.WebGLRenderTarget(1, 1);
-      renderer.shadowMap.needsUpdate = true;
-      renderer.setRenderTarget(tiny);
-      renderer.render(scene, camera);
-      renderer.setRenderTarget(null);
-      tiny.dispose();
-    }
+    // the shadows of the car's light, drawn once by the camera that sees every layer (a shadow map takes only what
+    // the camera rendering it sees, and the car is on the page's layer only from the lift on)
+    const tiny = new THREE.WebGLRenderTarget(1, 1);
+    renderer.shadowMap.needsUpdate = true;
+    renderer.setRenderTarget(tiny);
+    renderer.render(scene, camera);
+    renderer.setRenderTarget(null);
+    tiny.dispose();
     camera.layers.mask = mask;
     hidden.forEach((o) => { o.visible = false; });
   }
@@ -508,8 +329,7 @@ export function createStage({ canvas, sampleUi }) {
     renderer.setSize(W, H, false);
     camera.aspect = W / H;
     renderer.getDrawingBufferSize(uniforms.uRes.value);
-    if (sfPost) sfPost.setSize(uniforms.uRes.value.x, uniforms.uRes.value.y, dpr);
-    mirror.getRenderTarget().setSize(Math.round(W * dpr * 0.5), Math.round(H * dpr * 0.5));
+    sfPost.setSize(uniforms.uRes.value.x, uniforms.uRes.value.y, dpr);
     laptop.setViewSize(uniforms.uRes.value.x, uniforms.uRes.value.y);
     // turned between upright and landscape: the shots that depend on the frame's shape are rebuilt, then played
     // forward to where the page was, so every tween starts from the state the one before it left
@@ -667,7 +487,6 @@ export function createStage({ canvas, sampleUi }) {
     // car finish + swirl test
     uniforms.uGloss.value = overrides.gloss ?? look.gloss;
     uniforms.uSweep.value = look.sweep;
-    uniforms.uStudio.value = 1 - look.sun;              // in the sun, its reflection is the only highlight
     uniforms.uSwirl.value = look.swirl;
     uniforms.uSwirlHeat.value = look.heat;
     sun.intensity = 34 * look.sun;
@@ -707,15 +526,9 @@ export function createStage({ canvas, sampleUi }) {
     }
   };
 
-  // trial, for comparing with Sketchfab piece by piece (from the console or a capture script)
+  // for comparing with Sketchfab piece by piece (from the console or a capture script)
   // rebakeGround(opts): the ground's occlusion baked again with other settings (bakeGroundAO's)
-  const rebakeGround = (opts) => {
-    const g = bakeGroundAO(renderer, car.root, opts);
-    carShadow.material.uniforms.map.value = g.texture;
-    carShadow.position.set(g.rect.x, 0.004, g.rect.y);
-    carShadow.scale.set(g.rect.z / 3.8, g.rect.w / 6.6, 1);
-    return g.rect.toArray();
-  };
+  const rebakeGround = (opts) => groundAO(bakeGroundAO(renderer, car.root, opts));
   // idMask(on): every car material drawn in one flat colour of its own (with ?sfpost=0 the colours come out exact), the
   // ground's occlusion hidden; returns the legend { material name: [r, g, b] }. idMask(false) puts everything back.
   const idSaved = new Map();
@@ -755,7 +568,6 @@ export function createStage({ canvas, sampleUi }) {
     [plotterGroup, kit.rig, kit.pieces, laptop.group, laptop.mark, laptop.grid, laptop.highlights, cable.group, rigShadow, deskShadow, glare]
       .forEach((o) => { o.visible = false; });
     scene.fog = null;
-    scene.environmentRotation.y = (STUDIO.envRotation ?? 0) + ENV_TURN;
     sfPost.render(scene, camera, performance.now() / 1000);
   };
 
@@ -768,8 +580,6 @@ export function createStage({ canvas, sampleUi }) {
     pointer.sy += (pointer.y - pointer.sy) * 0.06;
     uniforms.uTime.value = t;
     apply();
-    // (the studio turns a little with the pointer; Sketchfab's stays put)
-    scene.environmentRotation.y = (STUDIO.envRotation ?? 0) + ENV_TURN + (STUDIO.sf ? 0 : pointer.sx * 0.45 * (1 - clamp01(cam.hook)));
     const dist = camera.position.distanceTo(target);
     const px = (2 * dist * Math.tan((camera.fov * Math.PI) / 360)) / H;
     kit.update(t, plotterRig, Math.max(0.0022, px * 1.1));
@@ -783,10 +593,8 @@ export function createStage({ canvas, sampleUi }) {
       const buf = uniforms.uRes.value;
       laptop.renderView(renderer, scene, t, camera, buf.x, buf.y, smooth(clamp01(cam.hook)), W / H, !copyTop());
     }
-    aimKey(camera);
     // (the page's own SSAO only while the car is in its frame; the laptop's screen brings its own)
-    if (sfPost) sfPost.render(scene, camera, performance.now() / 1000, carInView);
-    else renderer.render(scene, camera);
+    sfPost.render(scene, camera, performance.now() / 1000, carInView);
     // the square of film for the five layers, drawn over the frame
     sample.update(t, W, H, layersLayout().box);
     sample.render(renderer, scene.environment);
@@ -826,8 +634,7 @@ export function createStage({ canvas, sampleUi }) {
     const applyShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9)), CAR_T, 34);
     const swirlShot = shot(swirlEye, swirlAt, 40);
     // the car three-quarter on in the middle, as in the gloss shot and about as big (closer on a phone held upright);
-    // the square of film takes the space beside it (layersLayout). (Seen head-on, its flank caught the studio photo's
-    // brightest lamp edge-on and went white.)
+    // the square of film takes the space beside it (layersLayout)
     const layersShot = shot(CAR_T.clone().add(v3(-6.3, 1.15, -7.9).setLength(builtFor === 'tall' ? 7.5 : 9)), CAR_T, 34);
     layersPose = layersShot;
     lay.key = '';
