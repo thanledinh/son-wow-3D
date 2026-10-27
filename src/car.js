@@ -30,7 +30,9 @@ const GLOSS_LIGHTING = /* glsl */ `
   material.diffuseContribution = mix(dc, max(dl + (dc - dl) * 1.1, 0.0), uGloss);
   material.roughness *= mix(1.0, 0.8, uGloss);
   #ifdef USE_CLEARCOAT
-    material.clearcoatRoughness = mix(material.clearcoatRoughness, 0.0, uGloss);
+    // (down to the surface's own curvature term, three's specular anti-aliasing: at 0 the outline and the reflections'
+    // edges came out a mirror's hard, stair-stepped line)
+    material.clearcoatRoughness = mix(material.clearcoatRoughness, geometryRoughness, uGloss);
   #endif
 }
 `;
@@ -42,7 +44,7 @@ const OVERLAYS = /* glsl */ `
   if (uGloss > 0.001) {
     vec3 Vg = normalize(vViewPosition);
     float fg = pow(1.0 - clamp(dot(normal, Vg), 0.0, 1.0), 5.0);
-    gl_FragColor.rgb += getIBLRadiance(Vg, normal, 0.0) * (0.02 + 0.4 * fg) * uGloss;
+    gl_FragColor.rgb += getIBLRadiance(Vg, normal, geometryRoughness) * (0.02 + 0.4 * fg) * uGloss;
   }
   #endif
   // the film going on: one band of light sweeps the car from nose to tail
@@ -67,8 +69,9 @@ const OVERLAYS = /* glsl */ `
       vec2 tang = vec2(-sp.y, sp.x) / max(sr, 1e-4);
       float lines = 0.0;
       for (int o = 0; o < 3; o++) {
-        // a few centimetres of hairline per cell, not every cell scratched
-        float cell = o == 0 ? 0.046 : (o == 1 ? 0.031 : 0.021);
+        // a centimetre or two of fine hairline per cell, not every cell scratched (more, longer or brighter read as a
+        // car keyed rather than washed)
+        float cell = o == 0 ? 0.03 : (o == 1 ? 0.02 : 0.013);
         vec2 q = sp / cell + vec2(float(o) * 17.13, float(o) * 9.71);
         vec2 id = floor(q);
         vec2 f = fract(q) - 0.5;
@@ -78,9 +81,9 @@ const OVERLAYS = /* glsl */ `
         float across = abs(dot(f, vec2(-dir.y, dir.x)) - off);
         float along = abs(dot(f, dir));
         float px = length(fwidth(q));
-        float m = (1.0 - smoothstep(px * 0.18, px * 0.7, across)) * (1.0 - smoothstep(0.3, 0.47, along));
-        float has = step(0.28, hash12(id + 5.3));
-        lines += m * has * pow(abs(dot(dir, tang)), 16.0) * (0.45 + 0.55 * hash12(id + 3.1));
+        float m = (1.0 - smoothstep(px * 0.14, px * 0.6, across)) * (1.0 - smoothstep(0.22, 0.36, along));
+        float has = step(0.3, hash12(id + 5.3));
+        lines += m * has * pow(abs(dot(dir, tang)), 8.0) * (0.45 + 0.55 * hash12(id + 3.1));
       }
       gl_FragColor.rgb += vec3(1.0, 0.97, 0.9) * min(lines, 1.0) * halo * uSwirl * 1.35;
     }
@@ -103,6 +106,7 @@ export function createUniforms() {
     uSwirlR: { value: 0.35 },
     uSwirlC: { value: new THREE.Vector3(0, 1.1, -1.7) },
     uSwirlN: { value: new THREE.Vector3(0, 1, 0) },
+    sfCoatLight: { value: 0 },                     // the lights' highlights in the clear coat (sflook.js patchShading)
   };
 }
 

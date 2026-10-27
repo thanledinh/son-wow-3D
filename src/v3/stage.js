@@ -129,10 +129,18 @@ export function createStage({ canvas, sampleUi }) {
     scene.add(l, l.target);
     return l;
   });
-  const sun = new THREE.PointLight(0xfff1dc, 0, 0, 2);
+  // the swirl test: an inspection lamp, as a detailer holds one over a bonnet to find swirl marks (a spot aimed at the
+  // bonnet from where its reflection meets the camera; placeSun)
+  const sun = new THREE.SpotLight(0xfff4e6, 0, 0, 0.42, 0.75, 2);
   sun.layers.enable(1);
-  scene.add(sun);
+  scene.add(sun, sun.target);
   const sfLights = addSfLights(scene, new THREE.Vector3(0, 0.65, 0));
+  sfLights.forEach((l) => { l.userData.full = l.intensity; });
+  // While the lamp is on, the church light and Sketchfab's lights all but go (env, lights: the share taken off), so the
+  // bonnet is lit by the lamp alone: a bright pool, its hot reflection back in the clear coat (coat) with a bloom
+  // (glare, glareSize), the swirl marks ringing it (swirl, heat: their strength). (debug.sunLook, to tune live)
+  // (a stronger lamp washed the yellow out to near white, swallowing its own reflection and the marks)
+  const SUN_LOOK = { env: 0.92, lights: 0.95, sun: 6, coat: 1, glare: 2.4, glareSize: 0.26, swirl: 3.2, heat: 2.5 };
   // the sun's reflection: a small hot core with a soft bloom round it (the user found a bigger, brighter one glaring)
   const glareTex = (() => {
     const c = document.createElement('canvas');
@@ -265,11 +273,13 @@ export function createStage({ canvas, sampleUi }) {
     swirlEye.copy(swirlAt).add(new THREE.Vector3(0.62, 0.36, -1.18));
     const v = swirlAt.clone().sub(swirlEye).normalize();
     const r = v.clone().sub(swirlN.clone().multiplyScalar(2 * v.dot(swirlN)));   // mirror direction
-    sun.position.copy(swirlAt).addScaledVector(r, 4.5);
+    sun.position.copy(swirlAt).addScaledVector(r, 2.4);
+    sun.target.position.copy(swirlAt);
+    sun.target.updateMatrixWorld();
     glare.position.copy(swirlAt).addScaledVector(swirlN, 0.02);
     uniforms.uSwirlC.value.copy(swirlAt);
     uniforms.uSwirlN.value.copy(swirlN);
-    uniforms.uSwirlR.value = 0.19;
+    uniforms.uSwirlR.value = 0.11;     // (the marks show only in the lamp's halo round its reflection)
   }
 
   // Nothing may compile or upload mid-scroll (each new shader froze the page for 0.1-1.3 s the first time its scene
@@ -487,11 +497,16 @@ export function createStage({ canvas, sampleUi }) {
     // car finish + swirl test
     uniforms.uGloss.value = overrides.gloss ?? look.gloss;
     uniforms.uSweep.value = look.sweep;
-    uniforms.uSwirl.value = look.swirl;
-    uniforms.uSwirlHeat.value = look.heat;
-    sun.intensity = 34 * look.sun;
-    glare.material.opacity = 0.72 * look.sun;
-    glare.visible = look.sun > 0.01;
+    const S = SUN_LOOK, inSun = look.sun;
+    uniforms.uSwirl.value = look.swirl * S.swirl;
+    uniforms.uSwirlHeat.value = look.heat * S.heat;
+    glare.scale.setScalar(S.glareSize);
+    sun.intensity = S.sun * inSun;
+    uniforms.sfCoatLight.value = S.coat * inSun;
+    scene.environmentIntensity = SF.envIntensity * (1 - S.env * inSun);
+    sfLights.forEach((l) => { l.intensity = l.userData.full * (1 - S.lights * inSun); });
+    glare.material.opacity = S.glare * inSun;
+    glare.visible = inSun > 0.01;
     // the plotter (and its table, film web and light) leaves once the camera has turned to the car;
     // the desk and laptop fade with the laptop
     const machine = look.machine > 0.5;
@@ -697,13 +712,16 @@ export function createStage({ canvas, sampleUi }) {
       .fromTo(look, { sweep: 0 }, { sweep: 1, duration: 1.3, ease: 'none' }, T.apply + 0.45)
       .to(look, { gloss: 1, duration: 1.2 }, T.apply + 0.55)
       .to(K, { edge: 0, alpha: 0, duration: 0.6 }, T.apply + 1.3)
-      // 07 swirl marks in the sun, then the top coat heals them
+      // 07 swirl marks under an inspection lamp: the camera closes in until the frame is the bonnet round the lamp's
+      // reflection (the dimmed glass and lamps out of it), the marks ring it, the top coat heals them; at 08 it pulls
+      // back as the lamp goes off and the studio comes back
       .to(cam, { ...swirlShot, duration: 1.15 }, T.swirl)
-      .to(look, { sun: 1, duration: 0.6 }, T.swirl + 0.6)
-      .to(look, { swirl: 1, duration: 0.8 }, T.swirl + 1.2)
-      .to(cam, { dist: swirlShot.dist * 0.82, duration: 3.2, ease: 'none' }, T.swirl + 1.2)
-      .to(look, { heat: 1, duration: 0.45 }, T.swirl + 2.4)
-      .to(look, { swirl: 0, duration: 1.3 }, T.swirl + 2.75)
+      .to(cam, { dist: swirlShot.dist * 0.42, duration: 1.0, ease: 'power2.inOut' }, T.swirl + 1.15)
+      .to(look, { sun: 1, duration: 0.6 }, T.swirl + 1.7)
+      .to(look, { swirl: 1, duration: 0.7 }, T.swirl + 2.1)
+      .to(cam, { dist: swirlShot.dist * 0.38, duration: 2.35, ease: 'none' }, T.swirl + 2.15)
+      .to(look, { heat: 1, duration: 0.45 }, T.swirl + 2.7)
+      .to(look, { swirl: 0, duration: 1.2 }, T.swirl + 3.0)
       .to(look, { heat: 0, duration: 0.5 }, T.swirl + 4.0)
       // 08 five layers: the car in the middle, a square of film separates beside it
       .to(look, { sun: 0, duration: 0.6 }, T.layers)
@@ -728,6 +746,6 @@ export function createStage({ canvas, sampleUi }) {
   return {
     ready, render, setTime, resize,
     get duration() { return T.end; },
-    debug: { scene, camera, renderer, kit, laptop, sample, cam, look, overrides, get tl() { return tl; }, uniforms, sfcam: SFCAM, sf: { post: sfPost, lights: sfLights, ground: carShadow, rebakeGround, idMask } },
+    debug: { scene, camera, renderer, kit, laptop, sample, cam, look, overrides, get tl() { return tl; }, uniforms, sfcam: SFCAM, sf: { post: sfPost, lights: sfLights, ground: carShadow, rebakeGround, idMask }, sunLook: SUN_LOOK },
   };
 }

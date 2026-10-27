@@ -268,24 +268,31 @@ export function createKit() {
 
   // ---------------------------------------------------------------- the panels
   function buildPieces(glb) {
+    // Clear film you see through: no colour of its own (a white film lit by the church light read as frosted), only
+    // what it reflects, added in full over what lies behind it (premultiplied blending), which shows through all but a
+    // touch of cover: uLook = (cover face-on, more at grazing angles, reflection gain); the cut edge catches the light
     const mat = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff, roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
-      transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, envMapIntensity: 1.7,
+      color: 0x000000, roughness: 0.03, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.02,
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
     });
-    const u = { uAlpha: { value: 1 }, uEdge: { value: 0 } };
+    // (its reflections at 55%: in full they carried the church's brown pews across every piece)
+    const u = { uAlpha: { value: 1 }, uEdge: { value: 0 }, uLook: { value: new THREE.Vector3(0.015, 0.15, 0.55) } };
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, u);
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nattribute float aEdge;\nvarying float vEdge;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEdge = aEdge;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform float uAlpha; uniform float uEdge; varying float vEdge;')
+        .replace('#include <common>', '#include <common>\nuniform float uAlpha; uniform float uEdge; uniform vec3 uLook; varying float vEdge;')
         .replace('#include <opaque_fragment>', `#include <opaque_fragment>
-          // clear film: almost invisible face-on, a glassy sheen at grazing angles, the cut edge catches the light
           float fr = pow(1.0 - clamp(abs(dot(normal, normalize(vViewPosition))), 0.0, 1.0), 3.0);
-          float edge = smoothstep(0.55, 1.0, vEdge);
-          gl_FragColor.rgb += vec3(1.0, 0.97, 0.9) * edge * (0.35 + 0.9 * uEdge);
-          gl_FragColor.a = clamp(0.05 + fr * 0.42 + edge * (0.35 + 0.5 * uEdge), 0.0, 1.0) * uAlpha;`);
+          // (the cut edge's band at least about 1.5 px across, fainter as much as it is widened: thinner, it fell between
+          // pixels and broke into dots)
+          float band = max(0.45, 1.5 * fwidth(vEdge));
+          float edge = smoothstep(1.0 - band, 1.0, vEdge) * 0.45 / band;
+          gl_FragColor.rgb = (gl_FragColor.rgb * uLook.z + vec3(1.0, 0.97, 0.9) * edge * (0.35 + 0.9 * uEdge)) * uAlpha;
+          gl_FragColor.a = clamp(uLook.x + fr * uLook.y + edge * (0.35 + 0.5 * uEdge), 0.0, 1.0) * uAlpha;`);
     };
     pieces.userData.uniforms = u;
 

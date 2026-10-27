@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 
 /**
  * The page's look: the car as Sketchfab's viewer shows it, rebuilt from the model's public viewer settings
@@ -8,7 +9,8 @@ import { FullScreenQuad } from 'three/examples/jsm/postprocessing/Pass.js';
  * - shading: Sketchfab's PBR as three's, less three's extras (patchShading)
  * - lighting: the environment (Trinitatis Church, Unity's HDRI pack, CC0) at exposure 0.6, the model's three lights and
  *   the environment's own light (its brightest window), which casts the shadows
- * - post: SSAO, then colour balance and filmic tone mapping, then sharpen, vignette and grain (createSfPost)
+ * - post: SSAO, then colour balance and filmic tone mapping, then (ours) FXAA, then sharpen, vignette and grain
+ *   (createSfPost)
  * - the ground: Sketchfab's baked ambient occlusion under the car, baked here (bakeGroundAO)
  */
 export const SF = {
@@ -36,6 +38,8 @@ export const SF = {
  * Sketchfab's shading in three's physical material (before anything compiles): a clear coat reflects 8% at its
  * reflectivity 1 and shows no highlight of a light at roughness 0; no multiple-scattering compensation; the diffuse
  * layer is not reduced by what the specular one reflects.
+ * (sfCoatLight: a material that sets this uniform gets its lights' highlights in the clear coat back, so far as it says:
+ * the car paint under the sun in the swirl test. Unset it stays 0, as on Sketchfab.)
  */
 export function patchShading() {
   const C = THREE.ShaderChunk;
@@ -44,7 +48,8 @@ export function patchShading() {
     else C[chunk] = C[chunk].replace(from, to);
   };
   swap('lights_physical_fragment', 'material.clearcoatF0 = vec3( 0.04 );', 'material.clearcoatF0 = vec3( 0.08 );');
-  swap('lights_physical_pars_fragment', 'clearcoatSpecularDirect += ccIrradiance * BRDF_GGX_Clearcoat(', 'clearcoatSpecularDirect += 0.0 * ccIrradiance * BRDF_GGX_Clearcoat(');
+  C.lights_physical_pars_fragment = `uniform float sfCoatLight;\n${C.lights_physical_pars_fragment}`;
+  swap('lights_physical_pars_fragment', 'clearcoatSpecularDirect += ccIrradiance * BRDF_GGX_Clearcoat(', 'clearcoatSpecularDirect += sfCoatLight * ccIrradiance * BRDF_GGX_Clearcoat(');
   swap('lights_physical_pars_fragment', 'irradiance * specularBRDF * material.multiScatteringCompensation;', 'irradiance * specularBRDF;');
   swap('lights_physical_pars_fragment', 'BRDF_Lambert( material.diffuseContribution ) * ( 1.0 - F );', 'BRDF_Lambert( material.diffuseContribution );');
   swap('lights_physical_pars_fragment', 'indirectSpecular += multiScattering * cosineWeightedIrradiance;', '');
@@ -105,7 +110,12 @@ void main() {
   float d = texture2D(tDepth, px / uTex).r;
   if (d >= 1.0) { gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0); return; }
   vec3 P = viewPos(px);
-  vec3 n = normalize(cross(dFdx(P), dFdy(P)));
+  // the normal from the nearer neighbour each way (screen derivatives across the outline took the far plane for part of
+  // the surface, which darkened a stair-stepped ring inside it)
+  vec2 ox = vec2(uScale, 0.0), oy = vec2(0.0, uScale), lo = vec2(0.5), hi = uVp - 0.5;
+  vec3 ex = viewPos(clamp(px + ox, lo, hi)) - P, wx = P - viewPos(clamp(px - ox, lo, hi));
+  vec3 ny = viewPos(clamp(px + oy, lo, hi)) - P, sy = P - viewPos(clamp(px - oy, lo, hi));
+  vec3 n = normalize(cross(abs(ex.z) < abs(wx.z) ? ex : wx, abs(ny.z) < abs(sy.z) ? ny : sy));
   if (dot(n, P) > 0.0) n = -n;                      // facing the camera
   float ssR = uProjScale * uRadius / -P.z;         // the radius on screen (px)
   float ao = 1.0;
@@ -243,18 +253,20 @@ void main() {
 }`;
 
 const FINISH = /* glsl */ `
-uniform sampler2D tLDR; uniform sampler2D tDepth; uniform vec2 uTex; uniform float uPr;
+uniform sampler2D tLDR; uniform vec2 uTex; uniform float uPr;
 uniform float uSharpen; uniform vec2 uVignette; uniform float uGrain; uniform float uSeed; uniform float uFrame;
 ${COMMON}
 void main() {
   vec2 uv = gl_FragCoord.xy / uTex;
   vec3 s = texture2D(tLDR, uv).rgb;
-  // sharpen (display values, the four diagonal neighbours one CSS pixel away; not the background)
-  if (uSharpen > 0.0 && texture2D(tDepth, uv).r < 1.0) {
+  // sharpen (display values, the four diagonal neighbours one CSS pixel away), kept within the five samples' range
+  // (as AMD's CAS): unclamped, it drew a bright line round the car's outline and stair-stepped its anti-aliased edge
+  if (uSharpen > 0.0) {
     vec2 o = uPr / uTex;
-    vec3 d = texture2D(tLDR, uv - o).rgb + texture2D(tLDR, uv + o).rgb
-      + texture2D(tLDR, uv + vec2(o.x, -o.y)).rgb + texture2D(tLDR, uv + vec2(-o.x, o.y)).rgb;
-    s = clamp(s + uSharpen * (4.0 * s - d), 0.0, 1.0);
+    vec3 a = texture2D(tLDR, uv - o).rgb, b = texture2D(tLDR, uv + o).rgb;
+    vec3 c = texture2D(tLDR, uv + vec2(o.x, -o.y)).rgb, d = texture2D(tLDR, uv + vec2(-o.x, o.y)).rgb;
+    vec3 lo = min(s, min(min(a, b), min(c, d))), hi = max(s, max(max(a, b), max(c, d)));
+    s = clamp(s + uSharpen * (4.0 * s - (a + b + c + d)), lo, hi);
   }
   // vignette (screen uv, not aspect-corrected; multiplies in linear light; dithered)
   float amount = uVignette.x, hardness = uVignette.y;
@@ -276,8 +288,9 @@ void main() {
 
 /**
  * The page's frame through Sketchfab's chain: the scene into a linear HDR target (MSAA, with depth), SSAO multiplied
- * in, colour balance and tone mapping into display values, then sharpen, vignette and grain onto the canvas.
- * ?grain=0 turns the grain off (for comparing pictures).
+ * in, colour balance and tone mapping into display values, FXAA (ours: Sketchfab's temporal AA has nothing to settle
+ * on in a page that scrolls), then sharpen, vignette and grain onto the canvas.
+ * ?grain=0 turns the grain off (for comparing pictures), ?aa=0 the FXAA.
  */
 export function createSfPost(renderer) {
   const hdr = new THREE.WebGLRenderTarget(16, 16, { type: THREE.HalfFloatType, samples: 4, depthTexture: new THREE.DepthTexture(16, 16) });
@@ -291,11 +304,24 @@ export function createSfPost(renderer) {
   });
   const grainOff = new URLSearchParams(location.search).get('grain') === '0';
   const finish = pass(FINISH, {
-    tLDR: { value: ldr.texture }, tDepth: { value: hdr.depthTexture }, uTex: { value: new THREE.Vector2() }, uPr: { value: 1 },
+    tLDR: { value: ldr.texture }, uTex: { value: new THREE.Vector2() }, uPr: { value: 1 },
     uSharpen: { value: SF.sharpen }, uVignette: { value: new THREE.Vector2(...SF.vignette) }, uGrain: { value: grainOff ? 0 : SF.grain },
     uSeed: { value: 0 }, uFrame: { value: 0 },
   });
   const frame = 0;
+  // FXAA on the graded picture (display values, before the sharpen and grain) where a pixel is big enough for what 4x
+  // MSAA leaves of an edge to show (under 1.5 device pixels a CSS pixel): the steps of an outline, and of a bright
+  // reflection's edge most of all, whose samples are averaged before the tone map. About 0.5 ms at 1920 × 1080.
+  // At half its sub-pixel blending, which softens fine detail such as the laptop app's text. ?aa=0 leaves it out.
+  const aaOff = new URLSearchParams(location.search).get('aa') === '0';
+  const ldrAA = new THREE.WebGLRenderTarget(16, 16, { depthBuffer: false });
+  if (!FXAAShader.fragmentShader.includes('_SubpixelBlending = 1.0')) console.warn('sflook: three changed, FXAA not tuned');
+  const fxaa = new FullScreenQuad(new THREE.ShaderMaterial({
+    uniforms: { tDiffuse: { value: ldr.texture }, resolution: { value: new THREE.Vector2() } },
+    vertexShader: FXAAShader.vertexShader, depthTest: false, depthWrite: false,
+    fragmentShader: FXAAShader.fragmentShader.replace('_SubpixelBlending = 1.0', '_SubpixelBlending = 0.5'),
+  }));
+  const aa = { on: false };
   // ?sfpost=0: the light as it is (no SSAO, grading, sharpen, vignette or grain), as Sketchfab's viewer with its post off
   if (new URLSearchParams(location.search).get('sfpost') === '0') {
     grade.material.uniforms.uGrade.value = 0;
@@ -307,11 +333,16 @@ export function createSfPost(renderer) {
   return {
     hdr,
     ao,
-    // (live handles, for comparing piece by piece: grade.uGrade, finish.uSharpen / uVignette / uGrain, ao.uIntensity)
+    // (live handles, for comparing piece by piece: grade.uGrade, finish.uSharpen / uVignette / uGrain, ao.uIntensity,
+    // aa.on until the next resize)
     uniforms: { grade: grade.material.uniforms, finish: finish.material.uniforms, ao: ao.uniforms },
+    aa,
     setSize(w, h, pixelRatio) {
       hdr.setSize(w, h);
       ldr.setSize(w, h);
+      ldrAA.setSize(w, h);
+      fxaa.material.uniforms.resolution.value.set(1 / w, 1 / h);
+      aa.on = !aaOff && pixelRatio < 1.5;
       grade.material.uniforms.uTex.value.set(w, h);
       finish.material.uniforms.uTex.value.set(w, h);
       finish.material.uniforms.uPr.value = Math.min(1.5, pixelRatio);
@@ -323,7 +354,12 @@ export function createSfPost(renderer) {
       grade.material.uniforms.tAO.value = withAO ? ao.render(renderer, hdr.depthTexture, camera, hdr.width, hdr.height, hdr.width, hdr.height) : WHITE;
       renderer.setRenderTarget(ldr);
       grade.render(renderer);
+      if (aa.on) {
+        renderer.setRenderTarget(ldrAA);
+        fxaa.render(renderer);
+      }
       const f = finish.material.uniforms;
+      f.tLDR.value = aa.on ? ldrAA.texture : ldr.texture;
       f.uSeed.value = (Math.floor(seconds * 1000 / 64) * 0.618034) % 1;   // the grain moves every 64 ms
       f.uFrame.value = frame;
       renderer.setRenderTarget(null);
