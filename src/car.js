@@ -68,10 +68,11 @@ const OVERLAYS = /* glsl */ `
     if (halo > 0.002 && uSwirl > 0.001) {
       vec2 tang = vec2(-sp.y, sp.x) / max(sr, 1e-4);
       float lines = 0.0;
-      for (int o = 0; o < 3; o++) {
-        // a centimetre or two of fine hairline per cell, not every cell scratched (more, longer or brighter read as a
-        // car keyed rather than washed)
-        float cell = o == 0 ? 0.03 : (o == 1 ? 0.02 : 0.013);
+      for (int o = 0; o < 12; o++) {
+        // a centimetre or two of fine hairline per cell, not every cell scratched (longer or brighter read as a car
+        // keyed rather than washed); each of the three sizes four times, on grids offset from each other
+        int k = o % 3;
+        float cell = k == 0 ? 0.03 : (k == 1 ? 0.02 : 0.013);
         vec2 q = sp / cell + vec2(float(o) * 17.13, float(o) * 9.71);
         vec2 id = floor(q);
         vec2 f = fract(q) - 0.5;

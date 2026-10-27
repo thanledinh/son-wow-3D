@@ -5,8 +5,9 @@
   transition: opacity 0.7s var(--ease);
 }
 .side-shade.is-on { opacity: 1; }
-/* copy over bright paint (the bonnet in the sun) gets a deeper shade */
-.side-shade.is-strong { background: linear-gradient(90deg, rgba(6, 7, 8, 0.9) 0%, rgba(6, 7, 8, 0.72) 30%, rgba(6, 7, 8, 0) 58%); }
+/* copy over the bonnet under the lamp has no shade, which hid the paint: a closer shadow keeps it legible */
+.vcap[data-shade="none"] { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7), 0 2px 18px rgba(0, 0, 0, 0.55); }
+.vcap[data-shade="none"] :is(.vcap__eyebrow, .vcap__eyebrow .mono, .vcap__sub) { color: var(--ink); }
 
 .vcap {
   position: absolute; left: var(--gutter); top: 50%;
@@ -32,7 +33,6 @@
    Same query as COPY_TOP in stage.js. */
 @media (max-aspect-ratio: 23/20), (max-width: 819px) and (min-height: 500px) {
   .side-shade { background: linear-gradient(180deg, rgba(6, 7, 8, 0.85) 0%, rgba(6, 7, 8, 0.45) 34%, rgba(6, 7, 8, 0) 54%); }
-  .side-shade.is-strong { background: linear-gradient(180deg, rgba(6, 7, 8, 0.92) 0%, rgba(6, 7, 8, 0.66) 38%, rgba(6, 7, 8, 0) 60%); }
   .intro { top: 92px; transform: none; width: auto; right: var(--gutter); }
   .intro.is-off { transform: translateY(-20px); }
   .vcap { top: 84px; left: var(--gutter); right: var(--gutter); width: auto; transform: translateY(14px); }

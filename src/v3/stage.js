@@ -22,6 +22,7 @@ const HDRI = 'textures/trinitatis.hdr';
 const SFCAM = new URLSearchParams(location.search).get('sfcam')?.split(',').map(Number) ?? null;
 const ENV_TURN = +new URLSearchParams(location.search).get('rot') || 0;
 const DESK = new THREE.Vector3(-3.95, 0, -2.78);   // standing desk in front of the plotter's control-panel end
+const MACHINE_OUT = new THREE.Vector3(-9.4, 0, -5.6);   // where the plotter and its table slide once the kit is off them
 const CAR_T = new THREE.Vector3(0, 0.72, 0);
 const clamp01 = (t) => Math.min(1, Math.max(0, t));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -107,7 +108,8 @@ export function createStage({ canvas, sampleUi }) {
   const soft = radialTexture('rgb(40,40,40)', 'rgb(255,255,255)', 256);
   const rigShadow = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 2.6), shadowMat(soft, 0.75));
   rigShadow.rotation.x = -Math.PI / 2;
-  rigShadow.position.set(-3.05, 0.006, -0.6);
+  const RIG_SHADOW_AT = new THREE.Vector3(-3.05, 0.006, -0.6);
+  rigShadow.position.copy(RIG_SHADOW_AT);
   const deskShadow = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.1), shadowMat(soft, 0.7));
   deskShadow.rotation.x = -Math.PI / 2;
   deskShadow.position.set(DESK.x, 0.006, DESK.z);
@@ -180,7 +182,7 @@ export function createStage({ canvas, sampleUi }) {
   // shift: how far (fraction of the width) the picture slides right to leave the left column to the copy
   // (negative: slides left, for the five-layer sample on the right)
   const cam = { tx: 0, ty: 0, tz: 0, az: 0, el: 0, dist: 1, lens: 35, hook: 1, shift: 0 };
-  const look = { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 };
+  const look = { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1, out: 0 };
   const overrides = {};                               // dev: pin a look value (e.g. gloss) for comparisons
   let plotterGroup = null;
 
@@ -261,7 +263,8 @@ export function createStage({ canvas, sampleUi }) {
     await preroll();
   });
 
-  // the sun's reflection sits on the bonnet, where the swirl marks ring it
+  // the sun's reflection sits on the bonnet, where the swirl marks ring it. The camera looks square down onto the paint
+  // there (seen at an angle, it read as a look at the car rather than at its paint), so the lamp is behind it.
   const swirlAt = new THREE.Vector3(), swirlN = new THREE.Vector3(0, 1, 0), swirlEye = new THREE.Vector3();
   function placeSun() {
     const ray = new THREE.Raycaster(new THREE.Vector3(0.22, 3, -1.62), new THREE.Vector3(0, -1, 0));
@@ -270,7 +273,7 @@ export function createStage({ canvas, sampleUi }) {
       swirlAt.copy(hit.point);
       swirlN.copy(hit.face.normal).transformDirection(car.paint.matrixWorld).normalize();
     } else swirlAt.set(0.22, 1.08, -1.62);
-    swirlEye.copy(swirlAt).add(new THREE.Vector3(0.62, 0.36, -1.18));
+    swirlEye.copy(swirlAt).addScaledVector(swirlN, 1.37);
     const v = swirlAt.clone().sub(swirlEye).normalize();
     const r = v.clone().sub(swirlN.clone().multiplyScalar(2 * v.dot(swirlN)));   // mirror direction
     sun.position.copy(swirlAt).addScaledVector(r, 2.4);
@@ -507,14 +510,17 @@ export function createStage({ canvas, sampleUi }) {
     sfLights.forEach((l) => { l.intensity = l.userData.full * (1 - S.lights * inSun); });
     glare.material.opacity = S.glare * inSun;
     glare.visible = inSun > 0.01;
-    // the plotter (and its table, film web and light) leaves once the camera has turned to the car;
-    // the desk and laptop fade with the laptop
+    // the plotter (and its table, film web and light) slides out of the frame once the kit is off it, away from the car
+    // and across the camera's view, its lights fading (look.out), then goes; the desk and laptop fade with the laptop
     const machine = look.machine > 0.5;
     plotterGroup.visible = machine;
     rigShadow.visible = machine;
     kit.state.show = machine ? 1 : 0;
-    pools[0].intensity = machine ? pools[0].userData.full : 0;
-    pools[1].intensity = machine ? pools[1].userData.full : 0;
+    plotterGroup.position.copy(MACHINE_OUT).multiplyScalar(look.out);
+    kit.rig.position.copy(plotterGroup.position);
+    rigShadow.position.copy(RIG_SHADOW_AT).add(plotterGroup.position);
+    pools[0].intensity = machine ? pools[0].userData.full * (1 - look.out) : 0;
+    pools[1].intensity = machine ? pools[1].userData.full * (1 - look.out) : 0;
     pools[2].intensity = pools[2].userData.full * laptop.state.alpha;
     deskShadow.material.uniforms.uStrength.value = 0.7 * laptop.state.alpha;
     deskShadow.visible = laptop.state.alpha > 0.002;
@@ -638,11 +644,9 @@ export function createStage({ canvas, sampleUi }) {
     const cut1 = shot(v3(-2.45, 2.95, 1.15), v3(-3.45, 1.0, -0.55), 28);
     const cut2 = shot(v3(-1.95, 3.35, 0.55), v3(-2.95, 1.0, -0.6), 28);
     const pop = shot(v3(-0.55, 3.0, 2.9), v3(-2.55, 1.2, -0.55), 30);
-    // the camera rises off the end of the table and looks at the car: table and plotter are behind it, out of shot,
-    // and go; the pieces fly past the camera into the frame. Stepping further back would bring the table into a
-    // phone's tall frame, so there the lens opens instead.
+    // the camera pulls back from the table to the car, as wide as the turn round it, while the pieces fly over and the
+    // plotter with its table slides out of the frame (look.out)
     builtFor = frameKind();
-    const flyShot = shot(v3(-1.4, 2.0, 1.5), v3(0.6, 0.9, -0.4), builtFor === 'tall' ? 20 : 30);
     const orbit0 = shot(CAR_T.clone().add(v3(-1.4, 0.62, 1.5).setLength(9.6)), CAR_T, 32);
     const turned = orbit0.az + TAU;
     az = turned;
@@ -663,7 +667,7 @@ export function createStage({ canvas, sampleUi }) {
     Object.assign(K, { show: 1, cut: 0, push: 0, lift: 0, fly: 0, merge: 0, alpha: 1, edge: 0 });
     Object.assign(L, { alpha: 1, on: 1, ui: 0, sel: 0, nest: 0, send: 0, cursor: 0, cursorOn: 0, click: 0 });
     Object.assign(C, { flow: 0, pulse: 0 });
-    Object.assign(look, { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1 });
+    Object.assign(look, { gloss: 0, sweep: 0, swirl: 0, heat: 0, sun: 0, machine: 1, out: 0 });
 
     tl = gsap.timeline({ paused: true, defaults: { ease: 'power1.inOut' } });
     tl
@@ -703,9 +707,12 @@ export function createStage({ canvas, sampleUi }) {
       .to(K, { edge: 1, duration: 0.4 }, T.lift)
       .to(cam, { ...pop, duration: 0.8 }, T.lift + 0.05)
       .to(K, { fly: 1, duration: 2.1 }, T.lift + 0.55)
-      .to(cam, { ...flyShot, duration: 1.0 }, T.lift + 0.75)
-      .set(look, { machine: 0 }, T.lift + 1.8)
-      .to(cam, { ...orbit0, duration: T.orbit - T.lift - 1.85 }, T.lift + 1.85)
+      // (out to the turn's distance and height first, then round to its side: turning while still close swung the car
+      // through the frame big)
+      .to(cam, { dist: orbit0.dist, el: orbit0.el, lens: orbit0.lens, duration: 1.1, ease: 'power2.out' }, T.lift + 0.75)
+      .to(cam, { tx: orbit0.tx, ty: orbit0.ty, tz: orbit0.tz, az: orbit0.az, duration: T.orbit - T.lift - 0.75 }, T.lift + 0.75)
+      .to(look, { out: 1, duration: 1.3, ease: 'power2.in' }, T.lift + 0.7)
+      .set(look, { machine: 0 }, T.lift + 2.0)
       // 05 one full turn round the car with the film in the air
       .to(cam, { az: turned, duration: 3.5, ease: 'sine.inOut' }, T.orbit)
       .to(cam, { el: orbit0.el + 0.12, duration: 1.75, ease: 'sine.inOut', yoyo: true, repeat: 1 }, T.orbit)

@@ -111,7 +111,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 const timed = [...sticky.querySelectorAll('[data-in]')].map((el) => ({
-  el, a: +el.dataset.in, b: +el.dataset.out, on: false, strong: el.dataset.shade === 'strong',
+  el, a: +el.dataset.in, b: +el.dataset.out, on: false, bare: el.dataset.shade === 'none',
 }));
 const intro = document.querySelector('#intro');
 const sideShade = document.querySelector('#sideShade');
@@ -141,16 +141,14 @@ gsap.ticker.add((time) => {
       b.classList.toggle('is-done', i < c);
     });
   }
-  let copyOn = now <= T.reveal * 0.6, strong = false;
+  let copyOn = now <= T.reveal * 0.6;
   for (const t of timed) {
     const on = now >= t.a && now < t.b;
     if (on !== t.on) { t.on = on; t.el.classList.toggle('is-on', on); }
-    if (on && t.el.classList.contains('vcap')) copyOn = true;
-    if (on && t.strong) strong = true;
+    if (on && t.el.classList.contains('vcap') && !t.bare) copyOn = true;
   }
   intro.classList.toggle('is-off', now > T.reveal * 0.6);
   sideShade.classList.toggle('is-on', copyOn);
-  sideShade.classList.toggle('is-strong', strong);
   scrollHint.classList.toggle('is-off', lenis.scroll > top + 40);
 });
 
